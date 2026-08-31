@@ -44,20 +44,35 @@ export const MIN_PRC_PCT = 70;
 // allowlist fails the other way -- a new material is excluded until someone adds
 // it here on purpose. That is the direction we want to fail in.
 //
-// Resolved against location_materials for location_id = 4 on 2026-08-31.
+// Resolved against location_materials for location_id = 4 on 2026-08-31. Source
+// quarry is part of the identity here, not decoration -- Danville draws the same
+// SIZE from several quarries, and only Haydon's are dolomite.
 export const POLISH_RESISTANT_MATERIAL_IDS = new Set([
-  3,  // Dol. #10's Unwashed   (materials.rock = dolomite)
-  4,  // Dol. #10's Washed     (materials.rock = dolomite)
-  5,  // Dolomite #8's         (materials.rock = dolomite)
-  15, // Natural Sand          (materials.rock = gravel -- counts anyway, per BT3 + KYTC)
+  3,  // Dol. #10's Unwashed  -- Haydon Bardstown   (rock = dolomite)
+  4,  // Dol. #10's Washed    -- Haydon Bardstown   (rock = dolomite)
+  5,  // Dolomite #8's        -- Haydon Bardstown   (rock = dolomite)
+  15, // Natural Sand         -- Watson Gravel      (rock = gravel; counts, per BT3 + KYTC)
 ]);
 
-// Explicitly excluded, and explicitly commented so it can never become an
-// emergent property of a pattern match. CCI is currently materials.rock =
-// 'limestone', which would exclude it on rock alone -- but the ruling is that it
-// does not count EVEN IF it is reclassified later. That is what this set is for.
+// Explicitly excluded, so the answer is written down rather than inferred.
+//
+// What "CCI" actually is (Jake, 2026-08-31): Rogers Group at Caldwell Stone's
+// WASHED #10 limestone. It is not an exotic material -- it is one of THREE #10
+// limestones Danville draws on:
+//
+//   id 50  #10   Caldwell Stone   (wash unspecified)
+//   id 58  CCI   Caldwell Stone   (washed)        <-- this one
+//   id 16  #10   Dix River Quarry (wash unspecified)
+//
+// So it does not count toward the polish-resistant fraction for the ordinary
+// reason: it is limestone. It is listed here anyway because the string "CCI" is
+// opaque -- it does not read as a limestone #10 to anyone who has not been told,
+// and the risk is a future maintainer assuming it must be something dolomitic
+// and adding it to the allowlist above. This entry is the written answer to that
+// question. It is belt-and-braces, not load-bearing: 58 was never in the
+// allowlist, so removing this set would not change a single result.
 export const POLISH_RESISTANT_EXCLUDED_MATERIAL_IDS = new Set([
-  58, // "CCI" -- Jake 2026-08-31: does not count toward the polish-resistant fraction.
+  58, // CCI = Caldwell Stone washed #10, limestone. Does not count.
 ]);
 
 // Natural sand, for the MAX_NATURAL_SAND_PCT cap.

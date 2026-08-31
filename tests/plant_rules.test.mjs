@@ -12,8 +12,13 @@ function assert(cond, label) {
 }
 
 // Danville material ids, from location_materials where location_id = 4.
-const DOL_8 = 5, DOL_10W = 4, DOL_10U = 3, NAT_SAND = 15;
-const CCI = 58, LS_10 = 16, LS_57 = 57, FINE_RAP = 44;
+// Source quarry is part of the identity: the same SIZE comes from several
+// quarries and only Haydon Bardstown's are dolomite.
+const DOL_8 = 5, DOL_10W = 4, DOL_10U = 3;   // Haydon Bardstown (dolomite)
+const NAT_SAND = 15;                          // Watson Gravel
+const CCI = 58;                               // Caldwell Stone WASHED #10 (limestone)
+const CALDWELL_10 = 50, DIX_RIVER_10 = 16;    // the other two #10 limestones
+const LS_10 = DIX_RIVER_10, LS_57 = 57, FINE_RAP = 44;
 const bin = (material_id, agg_type, percent) => ({ material_id, agg_type, percent });
 
 // --- the constants Jake confirmed carry over from BT3 (brief 3.7 items 1-2) ---
@@ -29,9 +34,11 @@ assert(pr.isPolishResistant(bin(NAT_SAND, "Natural Sand", 10)) === true, "natura
 assert(pr.isPolishResistant(bin(LS_10, "#10", 20)) === false, "limestone does not count");
 assert(pr.isPolishResistant(bin(FINE_RAP, "Fine RAP", 13)) === false, "RAP does not count");
 
-// THE CCI CASE — the golden case brief 3.7 explicitly asks for. A blend where
-// counting CCI clears 70% and excluding it does not. Passes only when the
-// calculator reports the mix as FAILING.
+// THE CCI CASE — the golden case brief 3.7 asks for. CCI is Caldwell Stone's
+// washed #10 limestone (Jake, 2026-08-31), so it fails the polish-resistant test
+// for the ordinary reason rather than a special one. Still worth locking: the
+// label "CCI" does not read as limestone to anyone who has not been told, and a
+// blend leaning on it clears 70% if it is miscounted and fails if it is not.
 {
   const withCci = [
     bin(DOL_8, "Dolomite #8's", 40),
@@ -51,6 +58,15 @@ assert(pr.isPolishResistant(bin(FINE_RAP, "Fine RAP", 13)) === false, "RAP does 
 // the exclusion is by id and explicit, not an emergent property of a pattern.
 assert(pr.POLISH_RESISTANT_EXCLUDED_MATERIAL_IDS.has(CCI), "CCI is excluded by id, explicitly");
 assert(pr.POLISH_RESISTANT_MATERIAL_IDS.has(CCI) === false, "CCI is not in the allowlist");
+
+// Danville has THREE #10 limestones. All three fail, whichever quarry they came
+// from — and Haydon's #10, the same size designation, passes. A size label alone
+// does not decide this; the source does.
+assert(pr.isPolishResistant(bin(CALDWELL_10, "#10", 20)) === false, "Caldwell #10 does not count");
+assert(pr.isPolishResistant(bin(DIX_RIVER_10, "#10", 20)) === false, "Dix River #10 does not count");
+assert(pr.isPolishResistant(bin(CCI, "CCI", 20)) === false, "Caldwell washed #10 (CCI) does not count");
+assert(pr.isPolishResistant(bin(DOL_10W, "Dol. #10's Washed", 20)) === true,
+  "Haydon #10 DOES count - identical size, different quarry, different rock");
 
 // --- the A-mix gate, on Danville's real design names -------------------------
 assert(pr.isAMix("CL3 0.38A 64-22 Surface") === true, "Danville 0.38A is an A mix");

@@ -37,7 +37,7 @@ gradation tests. So:
 | `MIN_BIN_PCT` | **10** — same as BT3, copy unchanged |
 | `MAX_NATURAL_SAND_PCT` | **15** — same as BT3, copy unchanged |
 | `MIN_PRC_PCT` | **70** — applies at Danville (KYTC floor on "A" mixes; DBT runs an 0.38A and an 0.50A) |
-| Polish-resistant set | Dolomite counts. **"CCI" does NOT count**, whatever `materials.rock` says. Explicit commented allowlist by material id — **not** BT3's regex on `agg_type`. |
+| Polish-resistant set | Only **Haydon Bardstown's dolomite** (ids 3, 4, 5) and **natural sand** (15) count. Explicit commented allowlist by material id — **not** BT3's regex on `agg_type`. `CCI` does not count: it is Caldwell Stone's washed #10 **limestone** (see below), so it fails for the ordinary reason. |
 | Netlify site | **Its own site**: own subdomain, own env vars, own `SITE_PASSWORD`, own model keys, own rate-limit budget, own Blobs store. A bad DBT deploy must not be able to take BT3 down. |
 | `location_id` | **Parameterize `lib/db.mjs` from the start**, default `4`. BT3 is `1`. This is not a bet on back-porting BT3 — it is cheaper today than retrofitting later. Build nothing else for BT3's sake. |
 | `plant_log` | **Open.** Default to Netlify Blobs as BT3 has it; raise with Jake before build-order step 7. |
@@ -109,14 +109,46 @@ So:
   as written — a design component like `#9` is not a stockpile and has no gradation test. The
   available and more useful analysis is **running bins vs their own latest gradation tests**.
 - **Do not build a name→id map, and do not ask for a backfill.** Both encode a correspondence that
-  does not exist.
+  does not exist. The design prefixes do decode to sources (`CC` = Caldwell Stone, `G` = Gaddie
+  Shamrock), but a design component still names a size from a source, not a specific yard product.
 
 `plant_rules.mjs` already handles the design side correctly: bins arriving without a `material_id`
 are indeterminate, excluded from the PRC total, and reported as a `prc_indeterminate` warning saying
 the number is a lower bound and not a pass. That path now has a permanent reason to exist.
 
-One thing this surfaced: **CCI runs at 40–50% in the `0.38D Fine Surface`.** It is a primary bin, not
-an edge case, so §3.7's exclusion is load-bearing on real production numbers.
+### What "CCI" is, and the naming collision it exposes
+
+Corrected by Jake 2026-08-31. **CCI is not an exotic material.** It is Rogers Group at Caldwell
+Stone's *washed* #10 limestone. Danville draws on **three** #10 limestones:
+
+| id | Label | Source | Wash | Rock |
+|---|---|---|---|---|
+| 50 | `#10` | Rogers Group at Caldwell Stone | unspecified | limestone |
+| 58 | `CCI` | Rogers Group at Caldwell Stone | washed | limestone |
+| 16 | `#10` | Dix River Quarry | unspecified | limestone |
+
+…plus Haydon Bardstown's dolomite #10s (ids 3, 4), which are the same *size designation* and are the
+ones that count toward the polish-resistant floor.
+
+So CCI is excluded because it is limestone, not because it is special. The explicit entry in
+`POLISH_RESISTANT_EXCLUDED_MATERIAL_IDS` stays as documentation — the string "CCI" does not read as
+"limestone #10" to anyone who has not been told, and the foreseeable mistake is a future maintainer
+assuming it must be dolomitic and adding it to the allowlist. It is belt-and-braces, not
+load-bearing: 58 was never in the allowlist, so deleting the set would change no result.
+
+**The collision this exposes is a step-3 requirement.** `materials.aggregate_type` is literally
+`#10` for BOTH id 50 and id 16, and `materials.description` is NULL for every Danville material. Two
+different quarries, one identical display label. Non-negotiable 7 says techs speak in names and ids
+never appear in an answer — which means **the name the agent shows must carry the source**, e.g.
+"Caldwell #10", "Dix River #10", "Caldwell #10 washed (CCI)", "Haydon Dol. #10 Washed". A bare `#10`
+in an answer is ambiguous between three materials with different rock types, and picking the wrong
+one silently changes the polish-resistant math. Same lesson as rule 2b: a label alone does not
+identify a thing.
+
+Design component prefixes decode against these sources, which is what the `CC` / `G` in
+`mix_components.component_name` are for — `CC #10` / `CC #9` / `CC #67` are Caldwell Stone,
+`G #8` / `G #10` are Gaddie Shamrock. **Unconfirmed:** what a bare `#10` or `#9` means in a design
+(most likely Caldwell, which supplies most sizes) — ask before relying on it.
 
 ## Status
 
