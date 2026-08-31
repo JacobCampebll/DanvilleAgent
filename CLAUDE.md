@@ -78,35 +78,45 @@ clobbered it.
 
 **`git fetch` before any edit.** Every session, every time.
 
-## Open blocker — `mix_components.material_id` is empty at Danville
+## Design components and plant bins are different vocabularies
 
-Found while implementing the §3.7 polish-resistant allowlist, verified against the live database:
+Corrected by Jake 2026-08-31 after an earlier draft of this file called the empty
+`mix_components.material_id` column a data-entry gap to backfill. **It is not.** At Danville the mix
+design and the aggregate components are not the same things, and there is no 1:1 mapping to restore.
 
-| Table | Rows (Danville) | Carry `material_id` |
-|---|---|---|
-| `mix_components` | 79 | **0** |
-| `test_bin_percentages` | 44 | **44** |
-| `mix_components` (BT3, loc 1) | 152 | 53 |
+Three separate vocabularies, verified against the live database:
 
-Design components are identified only by a short `component_name` — `#10`, `RAP`, `#9`, `NS`,
-`CC #10`, `#57`, `CC #9`, `#67`, `#5`, `G #8`, `G #10`, `CC #67`. Several (`#9`, `#5`, `CC #9`,
-`G #8`) match no material in Danville's 14-material list at all.
+| Layer | Values |
+|---|---|
+| KYTC spec sizes (`aggregate_spec_sizes`) | No. 8, No. 9-M, No. 10, No. 11, No. 57, No. 67, DGA, … |
+| **Design** components (`mix_components.component_name`) | `#10, #5, #57, #67, #9, CC #10, CC #67, CC #9, G #10, G #8, NS, RAP` |
+| **Running** bins (`test_bin_percentages` → `materials`) | `#10, #57, #67, #8, CCI, Fine RAP, Natural Sand` |
 
-Consequences, and they are not small:
+A design component is a **size designation**, sometimes carrying a source prefix (`CC`, `G`). A bin
+holds a **specific product**. The `CL3 0.75D 64-22 Base` design reads `#10 / #57 / #9 / RAP`; the
+plant runs it as `CCI / #57 / #8 / Fine RAP`. Those are not the same materials, and the substitution
+is a real plant decision, not a typo.
 
-- **The 70% PRC floor cannot be enforced from design bins.** The id allowlist has nothing to match.
-- **`jmf_drift` cannot join design bins to stockpile gradations** — same missing link.
-- What *does* work: anything driven off `test_bin_percentages`, which is fully mapped. That covers
-  the primary use case (a sample is out of spec now, what moves), just not design-level analysis.
+So:
 
-`plant_rules.mjs` handles this honestly rather than guessing: an unclassifiable bin is
-**indeterminate**, excluded from the PRC total, and reported as a `prc_indeterminate` warning saying
-the number is a lower bound and not a pass. Guessing permissively would clear an illegal mix;
-guessing strictly would invent a violation on a good one. Do not "fix" this by adding a name regex —
-that is exactly the failure mode §3.7 ruled out.
+- **Bin identity comes from `test_bin_percentages`** — 44 of 44 Danville rows carry `material_id`.
+  That is the source of truth for what is in the mix, and it is what the §3.7 allowlist needs.
+- **`mix_components` is the approved recipe in spec-size vocabulary.** Use it for the design's
+  target percentages and for showing the tech the recipe. Do **not** try to resolve it to materials.
+- **Compute the PRC floor on running bins**, not design components. That is also the more defensible
+  reading: KYTC acceptance is on what was produced.
+- **`jmf_drift` needs reframing.** "Design bins vs today's stockpile sieves" (brief §1.5) cannot work
+  as written — a design component like `#9` is not a stockpile and has no gradation test. The
+  available and more useful analysis is **running bins vs their own latest gradation tests**.
+- **Do not build a name→id map, and do not ask for a backfill.** Both encode a correspondence that
+  does not exist.
 
-**Needs Jake:** populate `mix_components.material_id` in the QC app (12 distinct names, one-time),
-or rule on a name→id mapping. Four of the codes need his interpretation regardless.
+`plant_rules.mjs` already handles the design side correctly: bins arriving without a `material_id`
+are indeterminate, excluded from the PRC total, and reported as a `prc_indeterminate` warning saying
+the number is a lower bound and not a pass. That path now has a permanent reason to exist.
+
+One thing this surfaced: **CCI runs at 40–50% in the `0.38D Fine Surface`.** It is a primary bin, not
+an edge case, so §3.7's exclusion is load-bearing on real production numbers.
 
 ## Status
 
@@ -124,7 +134,8 @@ Steps 1–2 of brief §3.5 done, on `claude/danville-qc-design-vrn0zc`:
   would read 85% counting it, passing only when the calculator calls it a violation.
 
 Next: step 3, `lib/db.mjs` (Supabase data layer, `location_id` parameterized, default 4), returning
-BT3's tool shapes so the calculator and doctrine port unchanged.
+BT3's tool shapes so the calculator and doctrine port unchanged. Bin identity comes from
+`test_bin_percentages`, per the vocabularies section above.
 
 BT3's `tests/bailey_calc.test.mjs` is deliberately **not** committed yet — it imports `agent.mjs`
 (step 4) and its PRC block is BT3 fixtures. Re-copy and re-author it at step 6.
