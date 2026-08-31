@@ -122,12 +122,19 @@ Three separate vocabularies, verified against the live database:
 |---|---|
 | KYTC spec sizes (`aggregate_spec_sizes`) | No. 8, No. 9-M, No. 10, No. 11, No. 57, No. 67, DGA, … |
 | **Design** components (`mix_components.component_name`) | `#10, #5, #57, #67, #9, CC #10, CC #67, CC #9, G #10, G #8, NS, RAP` |
-| **Running** bins (`test_bin_percentages` → `materials`) | `#10, #57, #67, #8, CCI, Fine RAP, Natural Sand` |
+| **Running** bins (`test_bin_percentages` → `materials`) | `#10, #57, #67, #8, Fine RAP, Natural Sand` |
 
 A design component is a **size designation**, sometimes carrying a source prefix (`CC`, `G`). A bin
-holds a **specific product**. The `CL3 0.75D 64-22 Base` design reads `#10 / #57 / #9 / RAP`; the
-plant runs it as `CCI / #57 / #8 / Fine RAP`. Those are not the same materials, and the substitution
-is a real plant decision, not a typo.
+holds a **specific product**. The `CL3 0.75D 64-22 Base` design reads
+`#57 30% / #10 30% / #9 25% / RAP 15%`; the plant runs it as
+`#10 30% / #57 30% / #8 25% / Fine RAP 15%`.
+
+The clearest single proof that these are different vocabularies: the design calls for **`#9`**, and
+Danville has **no `#9` material at all** — the plant runs `#8` in that bin. That is a real plant
+decision, not a typo, and no mapping table can make `#9` resolve to a product that does not exist.
+
+(Before migration `0076` that bin-2 material read `CCI`, which made the contrast look starker than it
+is. The substitution it illustrates is real either way.)
 
 So:
 
@@ -218,18 +225,27 @@ un-run it.
 
 ## Status
 
-Steps 1–2 of brief §3.5 done, on `claude/danville-qc-design-vrn0zc`:
+Brief §3.5 **steps 1–2 done and merged to `main`** (PR #1, merge `fc4e075`), with step 3 partially
+done on top. The Netlify site `danville` builds `main` and serves the `public/` placeholder; verified
+on the live site that `CLAUDE.md`, the brief, `package.json`, `netlify.toml`, `tests/` and
+`netlify/functions/` all 404 — `publish = "public"` confirmed working rather than assumed. There is
+no deployed function yet, so nothing answers a question: `/` says so in as many words.
+
+Steps 1–2:
 
 - `netlify.toml` with `publish = "public"` from the first commit; `package.json` without `pdf-parse`
   (BT3's second dependency existed only for the wash-sieve PDF upload, which §3.1 deletes).
 - Plant-independent core copied **byte-identical** from BT3 `f28ee70`, sha256-verified:
   `bailey_calc.mjs`, `bailey_kb.mjs`, `spec.mjs`. Do not edit these — they are the ported math.
 - `plant_rules.mjs` re-authored for Danville: §3.7's constants, the polish-resistant allowlist by
-  material id, CCI excluded by id with a comment saying why. **Its exported shapes are a contract** —
+  material id. The exclusion set is a documented mechanism, currently empty — `CCI` was merged away
+  by `0076`. **Its exported shapes are a contract** —
   the copied `bailey_calc.mjs` calls `prcPercent()` as a number and `isNaturalSand()` as a boolean.
-- `tests/plant_rules.test.mjs` — 35 assertions, green, re-authored against Danville materials and
-  design names. Includes the CCI golden case §3.7 asks for: a blend that reads 50% excluding CCI and
-  would read 85% counting it, passing only when the calculator calls it a violation.
+- `tests/plant_rules.test.mjs` — 38 assertions, green, re-authored against Danville materials and
+  design names. Carries the case §3.7 asks for, re-authored after `0076`: a blend where a limestone
+  `#10` holds 35% reads 50% polish-resistant and would read 85% if that bin were miscounted, passing
+  only when the calculator calls it a violation. Material 50 is the stand-in for the phantom CCI, and
+  it is not hypothetical — the three samples that used to read CCI at 30–50% now read Rogers `#10`.
 
 Step 3 partially done — `lib/db.mjs`, the parts that do not depend on the data-app fix:
 
@@ -243,13 +259,15 @@ Step 3 partially done — `lib/db.mjs`, the parts that do not depend on the data
   volumetrics. Components are carried through in spec-size vocabulary and flagged
   `resolved: false`; they are **not** mapped to materials, pending the data-app fix.
 - **Display names are derived here, at one choke point** — `source` + `size` + `wash`, never a stored
-  `description`. All 13 active Danville materials get unique names, and a residual clash is *reported*
+  `description`. All 12 active Danville materials get unique names, and a residual clash is *reported*
   rather than passing silently.
 - Reads are TTL-cached (5 min) and each query is time-bounded; every query spends the same 60s the
   model calls do (§2.2, §3.4).
 - `notes` is tagged `notes_are_untrusted_free_text` at the boundary (rule 10b).
 - Bins carry `still_offered` and samples carry `retired_bins`, so a sample that ran a since-retired
   stockpile is marked rather than hidden (see the picker/saved-tests divergence above).
+- `tests/db.test.mjs` — 67 assertions, green, offline against fixtures shaped like PostgREST
+  responses. `npm test` runs both suites (105 assertions total).
 
 Three defects the tests and live checks caught, worth not re-learning:
 
