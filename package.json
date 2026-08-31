@@ -1,0 +1,11 @@
+{
+  "name": "danville-lab-agent",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node tests/plant_rules.test.mjs"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^8.1.0"
+  }
+}

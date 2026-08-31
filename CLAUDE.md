@@ -78,7 +78,53 @@ clobbered it.
 
 **`git fetch` before any edit.** Every session, every time.
 
+## Open blocker — `mix_components.material_id` is empty at Danville
+
+Found while implementing the §3.7 polish-resistant allowlist, verified against the live database:
+
+| Table | Rows (Danville) | Carry `material_id` |
+|---|---|---|
+| `mix_components` | 79 | **0** |
+| `test_bin_percentages` | 44 | **44** |
+| `mix_components` (BT3, loc 1) | 152 | 53 |
+
+Design components are identified only by a short `component_name` — `#10`, `RAP`, `#9`, `NS`,
+`CC #10`, `#57`, `CC #9`, `#67`, `#5`, `G #8`, `G #10`, `CC #67`. Several (`#9`, `#5`, `CC #9`,
+`G #8`) match no material in Danville's 14-material list at all.
+
+Consequences, and they are not small:
+
+- **The 70% PRC floor cannot be enforced from design bins.** The id allowlist has nothing to match.
+- **`jmf_drift` cannot join design bins to stockpile gradations** — same missing link.
+- What *does* work: anything driven off `test_bin_percentages`, which is fully mapped. That covers
+  the primary use case (a sample is out of spec now, what moves), just not design-level analysis.
+
+`plant_rules.mjs` handles this honestly rather than guessing: an unclassifiable bin is
+**indeterminate**, excluded from the PRC total, and reported as a `prc_indeterminate` warning saying
+the number is a lower bound and not a pass. Guessing permissively would clear an illegal mix;
+guessing strictly would invent a violation on a good one. Do not "fix" this by adding a name regex —
+that is exactly the failure mode §3.7 ruled out.
+
+**Needs Jake:** populate `mix_components.material_id` in the QC app (12 distinct names, one-time),
+or rule on a name→id mapping. Four of the codes need his interpretation regardless.
+
 ## Status
 
-Repo seeded with the handoff brief. No agent code written yet. Build order is brief §3.5; steps 1–2
-are unblocked by §3.7.
+Steps 1–2 of brief §3.5 done, on `claude/danville-qc-design-vrn0zc`:
+
+- `netlify.toml` with `publish = "public"` from the first commit; `package.json` without `pdf-parse`
+  (BT3's second dependency existed only for the wash-sieve PDF upload, which §3.1 deletes).
+- Plant-independent core copied **byte-identical** from BT3 `f28ee70`, sha256-verified:
+  `bailey_calc.mjs`, `bailey_kb.mjs`, `spec.mjs`. Do not edit these — they are the ported math.
+- `plant_rules.mjs` re-authored for Danville: §3.7's constants, the polish-resistant allowlist by
+  material id, CCI excluded by id with a comment saying why. **Its exported shapes are a contract** —
+  the copied `bailey_calc.mjs` calls `prcPercent()` as a number and `isNaturalSand()` as a boolean.
+- `tests/plant_rules.test.mjs` — 35 assertions, green, re-authored against Danville materials and
+  design names. Includes the CCI golden case §3.7 asks for: a blend that reads 50% excluding CCI and
+  would read 85% counting it, passing only when the calculator calls it a violation.
+
+Next: step 3, `lib/db.mjs` (Supabase data layer, `location_id` parameterized, default 4), returning
+BT3's tool shapes so the calculator and doctrine port unchanged.
+
+BT3's `tests/bailey_calc.test.mjs` is deliberately **not** committed yet — it imports `agent.mjs`
+(step 4) and its PRC block is BT3 fixtures. Re-copy and re-author it at step 6.
