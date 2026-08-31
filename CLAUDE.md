@@ -196,9 +196,43 @@ Steps 1–2 of brief §3.5 done, on `claude/danville-qc-design-vrn0zc`:
   design names. Includes the CCI golden case §3.7 asks for: a blend that reads 50% excluding CCI and
   would read 85% counting it, passing only when the calculator calls it a violation.
 
-Next: step 3, `lib/db.mjs` (Supabase data layer, `location_id` parameterized, default 4), returning
-BT3's tool shapes so the calculator and doctrine port unchanged. Bin identity comes from
-`test_bin_percentages`, per the vocabularies section above.
+Step 3 partially done — `lib/db.mjs`, the parts that do not depend on the data-app fix:
+
+- **PostgREST over global `fetch`.** No new dependency; package.json stays at one. `location_id` is a
+  constructor parameter defaulting to 4.
+- `getAggregates()` — `location_materials` → `materials` (+ source quarry) with the latest gradation
+  per material and `now() - test_date` freshness. Fully working.
+- `getSamples()` — `volumetric_tests` + `test_bin_percentages` + gradations. **Bins carry
+  `material_id`**, so this is the path the polish-resistant allowlist actually works on.
+- `getDesign()` / `listDesigns()` — identity, curve, per-sieve tolerances (BT3 has no equivalent) and
+  volumetrics. Components are carried through in spec-size vocabulary and flagged
+  `resolved: false`; they are **not** mapped to materials, pending the data-app fix.
+- **Display names are derived here, at one choke point** — `source` + `size` + `wash`, never a stored
+  `description`. All 13 active Danville materials get unique names, and a residual clash is *reported*
+  rather than passing silently.
+- Reads are TTL-cached (5 min) and each query is time-bounded; every query spends the same 60s the
+  model calls do (§2.2, §3.4).
+- `notes` is tagged `notes_are_untrusted_free_text` at the boundary (rule 10b).
+
+Three defects the tests and live checks caught, worth not re-learning:
+
+1. **`materials → locations` is ambiguous to PostgREST** (`PGRST201`): two relationships exist, the
+   `source_id` FK and a many-to-many via `location_materials`. Every such embed must name the
+   constraint — `source:locations!materials_source_id_fkey(...)`. Fixtures cannot catch this; see
+   `tests/live/README.md`.
+2. **`sieves.opening_mm` arrives as `"50.0000"`**, not `"50.0"` — trap §2.6, live. `sieveKeyFromMm()`
+   resolves every opening back to `bailey_calc`'s canonical key and drops one it does not recognise
+   rather than inventing it. Sieve `PAN` has a **null** opening and must not become a `"NaN"` key.
+3. **An exact design-name match is not decisive.** `CL3 0.38D 64-22 Fine Surface` is both an exact
+   match and a prefix of `CL3 0.38D 64-22 Fine Surface (3038D64F01)`, and a tech saying the short form
+   does not know the code exists. `getDesign` returns *ambiguous* with both candidates; only a plant
+   mix code resolves outright. This is rule 2b in the data layer.
+
+Still to do on step 3: nothing that does not depend on the data-app fix. When
+`mix_components` gains material resolution, `getDesign` starts reporting
+`components_resolved: true` and design-level PRC and `jmf_drift` come online with no code change.
+
+Next after that: step 4, port `runLoop` and the answer guarantee verbatim (§2.1, §2.2).
 
 BT3's `tests/bailey_calc.test.mjs` is deliberately **not** committed yet — it imports `agent.mjs`
 (step 4) and its PRC block is BT3 fixtures. Re-copy and re-author it at step 6.
