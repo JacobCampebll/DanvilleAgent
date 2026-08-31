@@ -1,3 +1,71 @@
+### "CCI" was not a product, and it is now gone
+
+Jake, 2026-08-31: *"Rogers only ships 10s, they don't make a cci. Someone randomly named it CCI even
+though it was still 10s."* So material 58 was Rogers Group at Caldwell Stone's #10 limestone under an
+invented name — not a distinct product.
+
+Two migrations, both **applied to production 2026-08-31**, after reading the SQL and verifying every
+guard against live data:
+
+| Migration | Effect |
+|---|---|
+| `0075_rogers_cci_not_a_product` (`20260831175704`) | stopped Danville **offering** it — 13 stockpiles → 12 |
+| `0076_merge_rogers_cci_into_10` | moved its **13 gradation tests and 3 bin rows** onto material 50 (Rogers `#10`), then **deleted material 58** |
+
+Verified after `0076`: 78 tests on Rogers `#10` (65 + 13), material 58 gone, all 16 moved ids landed
+on 50, **zero orphaned** gradation tests or bin rows, Danville still at 12 offered stockpiles.
+
+**The reversal record lives in the migration, not in a log.** `0076` raises the moved ids as a
+`NOTICE`, and its header says the merge is irreversible without them — but `apply_migration` does not
+surface `NOTICE` output (`0075` returned a bare `{"success":true}`). So the ids were captured by
+`SELECT` immediately *before* applying, and written into the migration's own `WHAT MOVED` block:
+
+```
+aggregate_gradation_tests: 4032, 4038, 4040, 4047, 4055, 4057, 4060, 4062, 4066, 4076, 4089, 4150, 4167
+test_bin_percentages:      133, 141, 152
+```
+
+Generalisable: when a plan depends on capturing output a tool does not return, capture it beforehand
+by other means rather than running the step and hoping.
+
+The #10 limestones Danville draws on, after `0076`:
+
+| id | Label | Source | Note |
+|---|---|---|---|
+| 50 | `#10` | Rogers Group at Caldwell Stone | now holds 78 tests |
+| 16 | `#10` | Dix River Quarry | |
+
+…against Haydon Bardstown's dolomite #10s (3, 4) — the same *size designation*, and the ones that
+count toward the polish-resistant floor. That contrast is what the allowlist is for, and it is held
+by tests rather than by an exclusion entry.
+
+**`POLISH_RESISTANT_EXCLUDED_MATERIAL_IDS` is now empty**, deliberately. Material 58 is deleted, and
+an id that resolves to nothing is worse than no entry — it reads as a live rule while doing nothing.
+
+**"CCI" also exists as material 62** — Lexington Quarry's washed #10 limestone, 8 gradation tests,
+offered at no location. Jake's ruling was about **Rogers specifically**, so `0076` was correctly
+scoped and 62 must **not** be assumed to be the same situation. It cannot reach a Danville answer
+today (offered nowhere, no bin rows), and if that changes it fails the polish-resistant test for the
+ordinary reason: it is limestone.
+
+**Still open, and not the merge's doing:** material 50's own `#200` readings reach **34.08%**, which
+is dust, not a #10. That predates `0076`. Because the moved ids are recorded, the 13 that arrived
+stay separable from the 65 already there, so whoever investigates can tell the populations apart.
+
+### The picker and the saved tests can disagree
+
+`0075` created the divergence any retirement creates: `getAggregates` filters on `active`, while
+`getSamples` reads bins through `test_bin_percentages`, which has no `active` filter — so a sample
+can name a stockpile the plant no longer offers.
+
+`0076` removed the CCI instance of it: those three Danville bins now name Rogers `#10`, a live
+stockpile. **The mechanism stays, because the situation recurs** — Clover Bottom Quarry's `#11`
+(id 63) is a genuine retired-but-referenced material, and it is what the tests use now.
+
+`db.mjs` **marks** rather than hides: each bin carries `still_offered`, each sample carries
+`retired_bins`. A sample is the record of what was actually run, and retiring a stockpile does not
+un-run it.
+
 # CLAUDE.md — Danville (DBT) Lab Agent
 
 Shared source of truth for every agent and account that touches this repo. Chat history is
@@ -37,7 +105,7 @@ gradation tests. So:
 | `MIN_BIN_PCT` | **10** — same as BT3, copy unchanged |
 | `MAX_NATURAL_SAND_PCT` | **15** — same as BT3, copy unchanged |
 | `MIN_PRC_PCT` | **70** — applies at Danville (KYTC floor on "A" mixes; DBT runs an 0.38A and an 0.50A) |
-| Polish-resistant set | Only **Haydon Bardstown's dolomite** (ids 3, 4, 5) and **natural sand** (15) count. Explicit commented allowlist by material id — **not** BT3's regex on `agg_type`. `CCI` does not count: it is Caldwell Stone's washed #10 **limestone** (see below), so it fails for the ordinary reason. |
+| Polish-resistant set | Only **Haydon Bardstown's dolomite** (ids 3, 4, 5) and **natural sand** (15) count. Explicit commented allowlist by material id — **not** BT3's regex on `agg_type`. The exclusion set is a mechanism and is currently **empty**; `CCI` no longer exists as a material (see below). |
 | Netlify site | **Its own site**: own subdomain, own env vars, own `SITE_PASSWORD`, own model keys, own rate-limit budget, own Blobs store. A bad DBT deploy must not be able to take BT3 down. |
 | `location_id` | **Parameterize `lib/db.mjs` from the start**, default `4`. BT3 is `1`. This is not a bet on back-porting BT3 — it is cheaper today than retrofitting later. Build nothing else for BT3's sake. |
 | `plant_log` | **Open.** Default to Netlify Blobs as BT3 has it; raise with Jake before build-order step 7. |
