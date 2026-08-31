@@ -42,6 +42,37 @@ gradation tests. So:
 | `location_id` | **Parameterize `lib/db.mjs` from the start**, default `4`. BT3 is `1`. This is not a bet on back-porting BT3 — it is cheaper today than retrofitting later. Build nothing else for BT3's sake. |
 | `plant_log` | **Open.** Default to Netlify Blobs as BT3 has it; raise with Jake before build-order step 7. |
 
+## Decision: the material identity fix happens in the data-entry app, not here
+
+Jake, 2026-08-31: he is correcting this in the QC data-entry app first.
+
+**So do not build a compensating layer in this repo.** No name→id mapping table, no fuzzy match from
+`component_name` to `materials`, no "best guess the source" heuristic. Every one of those encodes a
+correspondence that is about to be fixed properly upstream, and they are the kind of code that
+survives long after the reason for it is gone.
+
+What the agent needs the app to end up producing, in priority order:
+
+1. **A design component that resolves to a real material** — `mix_components.material_id` populated,
+   or whatever equivalent link the app settles on. This is the one that unblocks design-level
+   analysis: the PRC floor on design bins, and `jmf_drift` joining a design to stockpile gradations.
+2. **A material whose identity survives being written down.** Not necessarily a schema change — see
+   below.
+
+**What does NOT need fixing in the app:** the display-name collision. `materials.description` is
+NULL for all 14 Danville materials and `aggregate_type` is `#10` for both id 50 (Caldwell Stone) and
+id 16 (Dix River), but a unique, tech-readable name is already **derivable** from
+`source_id` + `size_desig` + `wash` — "Caldwell Stone #10", "Dix River #10", "Caldwell Stone #10
+Washed (CCI)", "Haydon Dol. #10 Washed". `lib/db.mjs` should derive it at the serialization boundary,
+the same single-choke-point discipline as the id scrub (brief §2.3). Populating `description` by hand
+would be a second source of truth that drifts.
+
+**How to build so the fix lands without a rewrite:** prefer `material_id` wherever it exists and
+degrade honestly where it does not. `plant_rules.mjs` already does exactly this — an id-less bin is
+indeterminate, excluded from the PRC total, reported as `prc_indeterminate` and never silently passed.
+Written this way, design-level analysis switches on by itself the day the column is populated, with
+no code change and no migration.
+
 ## Non-negotiables
 
 1. **The intelligence is the deterministic calculator, not the model.** `bailey_calc.mjs` does the
