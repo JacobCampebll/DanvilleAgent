@@ -1,71 +1,3 @@
-### "CCI" was not a product, and it is now gone
-
-Jake, 2026-08-31: *"Rogers only ships 10s, they don't make a cci. Someone randomly named it CCI even
-though it was still 10s."* So material 58 was Rogers Group at Caldwell Stone's #10 limestone under an
-invented name — not a distinct product.
-
-Two migrations, both **applied to production 2026-08-31**, after reading the SQL and verifying every
-guard against live data:
-
-| Migration | Effect |
-|---|---|
-| `0075_rogers_cci_not_a_product` (`20260831175704`) | stopped Danville **offering** it — 13 stockpiles → 12 |
-| `0076_merge_rogers_cci_into_10` | moved its **13 gradation tests and 3 bin rows** onto material 50 (Rogers `#10`), then **deleted material 58** |
-
-Verified after `0076`: 78 tests on Rogers `#10` (65 + 13), material 58 gone, all 16 moved ids landed
-on 50, **zero orphaned** gradation tests or bin rows, Danville still at 12 offered stockpiles.
-
-**The reversal record lives in the migration, not in a log.** `0076` raises the moved ids as a
-`NOTICE`, and its header says the merge is irreversible without them — but `apply_migration` does not
-surface `NOTICE` output (`0075` returned a bare `{"success":true}`). So the ids were captured by
-`SELECT` immediately *before* applying, and written into the migration's own `WHAT MOVED` block:
-
-```
-aggregate_gradation_tests: 4032, 4038, 4040, 4047, 4055, 4057, 4060, 4062, 4066, 4076, 4089, 4150, 4167
-test_bin_percentages:      133, 141, 152
-```
-
-Generalisable: when a plan depends on capturing output a tool does not return, capture it beforehand
-by other means rather than running the step and hoping.
-
-The #10 limestones Danville draws on, after `0076`:
-
-| id | Label | Source | Note |
-|---|---|---|---|
-| 50 | `#10` | Rogers Group at Caldwell Stone | now holds 78 tests |
-| 16 | `#10` | Dix River Quarry | |
-
-…against Haydon Bardstown's dolomite #10s (3, 4) — the same *size designation*, and the ones that
-count toward the polish-resistant floor. That contrast is what the allowlist is for, and it is held
-by tests rather than by an exclusion entry.
-
-**`POLISH_RESISTANT_EXCLUDED_MATERIAL_IDS` is now empty**, deliberately. Material 58 is deleted, and
-an id that resolves to nothing is worse than no entry — it reads as a live rule while doing nothing.
-
-**"CCI" also exists as material 62** — Lexington Quarry's washed #10 limestone, 8 gradation tests,
-offered at no location. Jake's ruling was about **Rogers specifically**, so `0076` was correctly
-scoped and 62 must **not** be assumed to be the same situation. It cannot reach a Danville answer
-today (offered nowhere, no bin rows), and if that changes it fails the polish-resistant test for the
-ordinary reason: it is limestone.
-
-**Still open, and not the merge's doing:** material 50's own `#200` readings reach **34.08%**, which
-is dust, not a #10. That predates `0076`. Because the moved ids are recorded, the 13 that arrived
-stay separable from the 65 already there, so whoever investigates can tell the populations apart.
-
-### The picker and the saved tests can disagree
-
-`0075` created the divergence any retirement creates: `getAggregates` filters on `active`, while
-`getSamples` reads bins through `test_bin_percentages`, which has no `active` filter — so a sample
-can name a stockpile the plant no longer offers.
-
-`0076` removed the CCI instance of it: those three Danville bins now name Rogers `#10`, a live
-stockpile. **The mechanism stays, because the situation recurs** — Clover Bottom Quarry's `#11`
-(id 63) is a genuine retired-but-referenced material, and it is what the tests use now.
-
-`db.mjs` **marks** rather than hides: each bin carries `still_offered`, each sample carries
-`retired_bins`. A sample is the record of what was actually run, and retiring a stockpile does not
-un-run it.
-
 # CLAUDE.md — Danville (DBT) Lab Agent
 
 Shared source of truth for every agent and account that touches this repo. Chat history is
@@ -128,12 +60,13 @@ What the agent needs the app to end up producing, in priority order:
    below.
 
 **What does NOT need fixing in the app:** the display-name collision. `materials.description` is
-NULL for all 14 Danville materials and `aggregate_type` is `#10` for both id 50 (Caldwell Stone) and
-id 16 (Dix River), but a unique, tech-readable name is already **derivable** from
-`source_id` + `size_desig` + `wash` — "Caldwell Stone #10", "Dix River #10", "Caldwell Stone #10
-Washed (CCI)", "Haydon Dol. #10 Washed". `lib/db.mjs` should derive it at the serialization boundary,
-the same single-choke-point discipline as the id scrub (brief §2.3). Populating `description` by hand
-would be a second source of truth that drifts.
+NULL for all 13 of Danville's material rows (12 active, after `0076`), and `aggregate_type` is `#10`
+for both id 50 (Rogers Group at Caldwell Stone) and id 16 (Dix River) — two quarries, one identical
+label. But a unique, tech-readable name is already **derivable** from `source_id` + `size_desig` +
+`wash`: "Caldwell Stone #10", "Dix River Quarry #10", "Haydon Bardstown Dol. #10's Washed".
+`lib/db.mjs` derives it at the serialization boundary, the same single-choke-point discipline as the
+id scrub (brief §2.3). Populating `description` by hand would be a second source of truth that
+drifts.
 
 **How to build so the fix lands without a rewrite:** prefer `material_id` wherever it exists and
 degrade honestly where it does not. `plant_rules.mjs` already does exactly this — an id-less bin is
@@ -215,66 +148,73 @@ So:
 are indeterminate, excluded from the PRC total, and reported as a `prc_indeterminate` warning saying
 the number is a lower bound and not a pass. That path now has a permanent reason to exist.
 
-### "CCI" is not a product — and it is retired, not gone
+### "CCI" was not a product, and it is now gone
 
 Jake, 2026-08-31: *"Rogers only ships 10s, they don't make a cci. Someone randomly named it CCI even
-though it was still 10s."* So material 58 is Rogers Group at Caldwell Stone's #10 limestone under a
-name someone invented.
+though it was still 10s."* So material 58 was Rogers Group at Caldwell Stone's #10 limestone under an
+invented name — not a distinct product.
 
-**Migration `0075_rogers_cci_not_a_product` was applied to production on 2026-08-31**
-(version `20260831175704`), deactivating Danville's offer of it. Danville went from 13 offered
-stockpiles to 12. Verified after applying: CCI offered nowhere, its `location_materials` row still
-present but inactive, and **13 gradation tests and 3 bin rows untouched**.
+Two migrations, both **applied to production 2026-08-31**, after reading the SQL and verifying every
+guard against live data:
 
-Deactivated, not deleted, and that distinction is load-bearing twice over: a location with *no* rows
-reads as "never reviewed, offer everything", so deleting the row would have widened Danville's list;
-and dropping the material would orphan those 13 tests and 3 bins.
+| Migration | Effect |
+|---|---|
+| `0075_rogers_cci_not_a_product` (`20260831175704`) | stopped Danville **offering** it — 13 stockpiles → 12 |
+| `0076_merge_rogers_cci_into_10` | moved its **13 gradation tests and 3 bin rows** onto material 50 (Rogers `#10`), then **deleted material 58** |
 
-The #10 limestones Danville has drawn on:
+Verified after `0076`: 78 tests on Rogers `#10` (65 + 13), material 58 gone, all 16 moved ids landed
+on 50, **zero orphaned** gradation tests or bin rows, Danville still at 12 offered stockpiles.
 
-| id | Label | Source | Status |
+**The reversal record lives in the migration, not in a log.** `0076` raises the moved ids as a
+`NOTICE`, and its header says the merge is irreversible without them — but `apply_migration` does not
+surface `NOTICE` output (`0075` returned a bare `{"success":true}`). So the ids were captured by
+`SELECT` immediately *before* applying, and written into the migration's own `WHAT MOVED` block:
+
+```
+aggregate_gradation_tests: 4032, 4038, 4040, 4047, 4055, 4057, 4060, 4062, 4066, 4076, 4089, 4150, 4167
+test_bin_percentages:      133, 141, 152
+```
+
+Generalisable: when a plan depends on capturing output a tool does not return, capture it beforehand
+by other means rather than running the step and hoping.
+
+The #10 limestones Danville draws on, after `0076`:
+
+| id | Label | Source | Note |
 |---|---|---|---|
-| 50 | `#10` | Rogers Group at Caldwell Stone | offered |
-| 58 | `CCI` | Rogers Group at Caldwell Stone | **retired by `0075`** — same pile as 50 |
-| 16 | `#10` | Dix River Quarry | offered |
+| 50 | `#10` | Rogers Group at Caldwell Stone | now holds 78 tests |
+| 16 | `#10` | Dix River Quarry | |
 
-…plus Haydon Bardstown's dolomite #10s (ids 3, 4), the same *size designation* and the ones that
-count toward the polish-resistant floor.
+…against Haydon Bardstown's dolomite #10s (3, 4) — the same *size designation*, and the ones that
+count toward the polish-resistant floor. That contrast is what the allowlist is for, and it is held
+by tests rather than by an exclusion entry.
 
-CCI is excluded from the polish-resistant set because it is limestone, not because it is special.
-The entry in `POLISH_RESISTANT_EXCLUDED_MATERIAL_IDS` stays: three of those bin rows are from the
-last week of August, so a live sample can still name it, and the string "CCI" does not read as
-"limestone #10" to anyone who has not been told.
+**`POLISH_RESISTANT_EXCLUDED_MATERIAL_IDS` is now empty**, deliberately. Material 58 is deleted, and
+an id that resolves to nothing is worse than no entry — it reads as a live rule while doing nothing.
 
-**Still open (the other session's migration):** whether 58's 13 tests and 3 bin rows get moved onto
-material 50 so 58 can finally be dropped. Jake has ruled it is one pile, so the merge is right in
-principle. One caution passed to them: material 50's own `#200` readings reach **34%**, which is not
-a #10, so 58's cleaner data would be merged into a set that already looks mis-filed.
+**"CCI" also exists as material 62** — Lexington Quarry's washed #10 limestone, 8 gradation tests,
+offered at no location. Jake's ruling was about **Rogers specifically**, so `0076` was correctly
+scoped and 62 must **not** be assumed to be the same situation. It cannot reach a Danville answer
+today (offered nowhere, no bin rows), and if that changes it fails the polish-resistant test for the
+ordinary reason: it is limestone.
+
+**Still open, and not the merge's doing:** material 50's own `#200` readings reach **34.08%**, which
+is dust, not a #10. That predates `0076`. Because the moved ids are recorded, the 13 that arrived
+stay separable from the 65 already there, so whoever investigates can tell the populations apart.
 
 ### The picker and the saved tests can disagree
 
-`0075` created exactly the divergence to expect from any retirement: `getAggregates` filters on
-`active` so CCI is gone from the stockpile list, while `getSamples` reads bins through
-`test_bin_percentages`, which has no `active` filter, so three recent samples still name it.
+`0075` created the divergence any retirement creates: `getAggregates` filters on `active`, while
+`getSamples` reads bins through `test_bin_percentages`, which has no `active` filter — so a sample
+can name a stockpile the plant no longer offers.
 
-That is correct for history and wrong to present as current, so `db.mjs` **marks** it rather than
-hiding or silently correcting it: each bin carries `still_offered`, and each sample carries
+`0076` removed the CCI instance of it: those three Danville bins now name Rogers `#10`, a live
+stockpile. **The mechanism stays, because the situation recurs** — Clover Bottom Quarry's `#11`
+(id 63) is a genuine retired-but-referenced material, and it is what the tests use now.
+
+`db.mjs` **marks** rather than hides: each bin carries `still_offered`, each sample carries
 `retired_bins`. A sample is the record of what was actually run, and retiring a stockpile does not
 un-run it.
-
-**The collision this exposes is a step-3 requirement.** `materials.aggregate_type` is literally
-`#10` for BOTH id 50 and id 16, and `materials.description` is NULL for every Danville material. Two
-different quarries, one identical display label. Non-negotiable 7 says techs speak in names and ids
-never appear in an answer — which means **the name the agent shows must carry the source**, e.g.
-"Caldwell #10", "Dix River #10", "Caldwell #10 washed (CCI)", "Haydon Dol. #10 Washed". A bare `#10`
-in an answer is ambiguous between three materials with different rock types, and picking the wrong
-one silently changes the polish-resistant math. Same lesson as rule 2b: a label alone does not
-identify a thing.
-
-Design component prefixes decode against these sources, which is what the `CC` / `G` in
-`mix_components.component_name` are for — `CC #10` / `CC #9` / `CC #67` are Caldwell Stone,
-`G #8` / `G #10` are Gaddie Shamrock. **Unconfirmed:** what a bare `#10` or `#9` means in a design
-(most likely Caldwell, which supplies most sizes) — ask before relying on it.
 
 ## Status
 
