@@ -1,0 +1,3 @@
+# Internal QC tool for The Allen Company's Danville plant. Not for indexing.
+User-agent: *
+Disallow: /

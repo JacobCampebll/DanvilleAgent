@@ -1,0 +1,11 @@
+# Danville Lab Agent (DBT) — Netlify config
+#
+# publish = "public" is load-bearing, not cosmetic. BT3 shipped with publish = "."
+# and served CLAUDE.md, package.json and tests/ off the live site to anyone who
+# guessed a filename. Every path in the app is root-relative, so public/ becomes
+# / with no URL changes. Do not widen this.
+[build]
+  publish = "public"
+
+[functions]
+  node_bundler = "esbuild"
