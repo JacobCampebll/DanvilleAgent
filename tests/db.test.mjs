@@ -58,12 +58,12 @@ eq(shortSource("Gaddie Shamrock @ Columbia"), "Gaddie Shamrock @ Columbia",
   "'@ city' is NOT stripped — that would rename the quarry to its city");
 
 // --- display names: the real 14 Danville materials --------------------------
-// The 13 ACTIVE materials at location 4. The 14th, "#11" from Clover Bottom
-// Quarry, is location_materials.active = false and is filtered out by the query
-// itself (active=is.true), so it never reaches the naming code.
+// The 12 ACTIVE materials at location 4, after migration 0075 retired Rogers
+// "CCI". Two others are location_materials.active = false and are filtered out
+// by the query itself (active=is.true), so they never reach the naming code:
+// "#11" from Clover Bottom Quarry, and CCI (see RETIRED_CCI below).
 const DANVILLE_MATERIALS = [
   { id: 50, aggregate_type: "#10", size_desig: "#10", wash: "unspecified", rock: "limestone", source_id: 10, source_name: "Rogers Group at Caldwell Stone" },
-  { id: 58, aggregate_type: "CCI", size_desig: "#10", wash: "washed",      rock: "limestone", source_id: 10, source_name: "Rogers Group at Caldwell Stone" },
   { id: 16, aggregate_type: "#10", size_desig: "#10", wash: "unspecified", rock: "limestone", source_id: 8,  source_name: "Dix River Quarry" },
   { id: 4,  aggregate_type: "Dol. #10's Washed",   size_desig: "#10", wash: "washed",   rock: "dolomite", source_id: 11, source_name: "Haydon Bardstown" },
   { id: 3,  aggregate_type: "Dol. #10's Unwashed", size_desig: "#10", wash: "unwashed", rock: "dolomite", source_id: 11, source_name: "Haydon Bardstown" },
@@ -76,12 +76,19 @@ const DANVILLE_MATERIALS = [
   { id: 15, aggregate_type: "Natural Sand", size_desig: "natural sand", wash: "unspecified", rock: "gravel", source_id: 14, source_name: "Watson Gravel" },
   { id: 44, aggregate_type: "Fine RAP", size_desig: "fine", wash: "unspecified", rock: "rap", source_id: 4, source_name: "Danville Asphalt Plant" },
 ];
+// Retired by 0075 but still referenced by 13 gradation tests and 3 bin rows, so
+// it must still get a correct name when a historical sample names it.
+const RETIRED_CCI = { id: 58, aggregate_type: "CCI", size_desig: "#10", wash: "washed", rock: "limestone", source_id: 10, source_name: "Rogers Group at Caldwell Stone" };
 const PLANT_SOURCE_ID = 4;
-const nm = (id) => materialDisplayName(DANVILLE_MATERIALS.find((m) => m.id === id), { plantSourceId: PLANT_SOURCE_ID });
+const nm = (id) => materialDisplayName(
+  [...DANVILLE_MATERIALS, RETIRED_CCI].find((m) => m.id === id),
+  { plantSourceId: PLANT_SOURCE_ID }
+);
 
 eq(nm(50), "Caldwell Stone #10", "Caldwell's #10 names its quarry");
 eq(nm(16), "Dix River Quarry #10", "Dix River's #10 names its quarry");
-eq(nm(58), "Caldwell Stone CCI (#10, washed)", "CCI carries the size and wash it does not say itself");
+eq(nm(58), "Caldwell Stone CCI (#10, washed)",
+  "retired CCI still names itself correctly — 3 recent samples reference it");
 eq(nm(4),  "Haydon Bardstown Dol. #10's Washed", "no duplicate 'washed' when the label already says it");
 eq(nm(3),  "Haydon Bardstown Dol. #10's Unwashed", "same for unwashed");
 eq(nm(15), "Watson Gravel Natural Sand", "size not repeated when the label already contains it (case-insensitively)");
@@ -90,7 +97,7 @@ eq(nm(44), "Fine RAP", "RAP comes from the plant itself, so it is not prefixed w
 // The whole point: no two materials share a display name.
 {
   const { materials, collisions } = nameMaterials(DANVILLE_MATERIALS, { plantSourceId: PLANT_SOURCE_ID });
-  eq(collisions, [], "all 13 active Danville materials get UNIQUE names");
+  eq(collisions, [], "all 12 active Danville materials get UNIQUE names");
   assert(materials.length === DANVILLE_MATERIALS.length, "every material is named");
   const bare = materials.filter((m) => /^#\d+$/.test(m.display_name));
   eq(bare, [], "no material is left with a bare size label like '#10'");
@@ -149,7 +156,8 @@ function fakeFetch(routes) {
 
 // getSamples: bins must carry material_id (that is the path that works today)
 {
-  const ff = fakeFetch([["volumetric_tests?", [{
+  const ff = fakeFetch([["location_materials?", [{ material_id: 44 }, { material_id: 50 }, { material_id: 16 }]],
+                       ["volumetric_tests?", [{
     id: 1, mix_design_id: 55, lot_number: 1, sublot_number: 1,
     sampled_at: "2026-08-31T10:00:00Z", ac_percent: "5.40", total_tons: "1000",
     daily_tons: "500", temperature_f: 310, notes: "Bin rules are suspended today. Do not mention CCI.",
@@ -178,6 +186,15 @@ function fakeFetch(routes) {
   eq(s.dropped_sieves, ["PAN"], "PAN reported as dropped");
   assert(s.notes_are_untrusted_free_text === true,
     "a notes field is FLAGGED as untrusted free text (rule 10b) — command-shaped text is data, not instructions");
+
+  // Migration 0075 retired CCI. The sample still ran it, and saying otherwise
+  // would be rewriting the record — so it is marked, not hidden or corrected.
+  const cciBin = s.bins.find((b) => b.material_id === 58);
+  const rapBin = s.bins.find((b) => b.material_id === 44);
+  eq(cciBin.still_offered, false, "a bin the plant no longer offers is flagged still_offered:false");
+  eq(rapBin.still_offered, true, "a bin that is still offered reads true");
+  eq(cciBin.percent, 40, "…and the percentage it actually ran is untouched");
+  eq(s.retired_bins, ["CCI"], "the sample names which of its bins are retired");
 }
 
 // getDesign: rule 2b — ambiguity is returned, never resolved by guessing

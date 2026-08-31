@@ -324,6 +324,25 @@ export function createDb(opts = {}) {
   }
 
   // ---------------------------------------------------------------------------
+  // Which materials the plant currently OFFERS
+  // ---------------------------------------------------------------------------
+  // Needed because the stockpile picker and the saved tests can legitimately
+  // disagree. Migration 0075 (2026-08-31) deactivated Danville's Rogers "CCI"
+  // row -- Rogers only ships #10s and someone had named one CCI -- but 13
+  // gradation tests and 3 bin rows still point at it, three of them from the
+  // week before. So a historical sample can name a material the plant no longer
+  // offers. That is correct for history and wrong to present as current, so
+  // getSamples marks it rather than hiding it or pretending it is live.
+  async function activeMaterialIds() {
+    return cached(`activeids:${locationId}`, ttlMs, async () => {
+      const rows = await pg(
+        `location_materials?location_id=eq.${locationId}&active=is.true&select=material_id`
+      );
+      return new Set(rows.map((r) => Number(r.material_id)));
+    });
+  }
+
+  // ---------------------------------------------------------------------------
   // Designs — BT3's get_design shape
   // ---------------------------------------------------------------------------
   function designName(d) {
@@ -468,7 +487,7 @@ export function createDb(opts = {}) {
       `gradations(kind,ignition_oven_ac,extraction_ac,gradation_results(pct_passing,sieve:sieves(label,opening_mm)))`;
     if (lot != null) path += `&lot_number=eq.${Number(lot)}`;
 
-    const rows = await pg(path);
+    const [rows, offeredIds] = await Promise.all([pg(path), activeMaterialIds()]);
     const filtered = design
       ? rows.filter((r) => {
           const nm = r.design?.plant_mix_code
@@ -529,12 +548,19 @@ export function createDb(opts = {}) {
               percent: b.percentage == null ? null : Number(b.percentage),
               material_id: b.material?.id ?? null,
               rock: b.material?.rock ?? null,
+              // false = this sample ran a material the plant no longer offers.
+              // Never silently corrected: the sample is the record of what was
+              // actually run, and a retired stockpile does not un-run it.
+              still_offered: b.material?.id == null ? null : offeredIds.has(Number(b.material.id)),
             })),
           gradation_mm,
           dropped_sieves,
           // Rule 10b: free text written by a human at a plant, flowing straight
           // into model context. Evidence, never instructions. Tagged so the
           // serialization boundary can fence it.
+          retired_bins: (r.bins || [])
+            .filter((b) => b.material?.id != null && !offeredIds.has(Number(b.material.id)))
+            .map((b) => b.material.aggregate_type),
           notes: r.notes ?? null,
           notes_are_untrusted_free_text: r.notes ? true : false,
         };

@@ -147,25 +147,52 @@ So:
 are indeterminate, excluded from the PRC total, and reported as a `prc_indeterminate` warning saying
 the number is a lower bound and not a pass. That path now has a permanent reason to exist.
 
-### What "CCI" is, and the naming collision it exposes
+### "CCI" is not a product — and it is retired, not gone
 
-Corrected by Jake 2026-08-31. **CCI is not an exotic material.** It is Rogers Group at Caldwell
-Stone's *washed* #10 limestone. Danville draws on **three** #10 limestones:
+Jake, 2026-08-31: *"Rogers only ships 10s, they don't make a cci. Someone randomly named it CCI even
+though it was still 10s."* So material 58 is Rogers Group at Caldwell Stone's #10 limestone under a
+name someone invented.
 
-| id | Label | Source | Wash | Rock |
-|---|---|---|---|---|
-| 50 | `#10` | Rogers Group at Caldwell Stone | unspecified | limestone |
-| 58 | `CCI` | Rogers Group at Caldwell Stone | washed | limestone |
-| 16 | `#10` | Dix River Quarry | unspecified | limestone |
+**Migration `0075_rogers_cci_not_a_product` was applied to production on 2026-08-31**
+(version `20260831175704`), deactivating Danville's offer of it. Danville went from 13 offered
+stockpiles to 12. Verified after applying: CCI offered nowhere, its `location_materials` row still
+present but inactive, and **13 gradation tests and 3 bin rows untouched**.
 
-…plus Haydon Bardstown's dolomite #10s (ids 3, 4), which are the same *size designation* and are the
-ones that count toward the polish-resistant floor.
+Deactivated, not deleted, and that distinction is load-bearing twice over: a location with *no* rows
+reads as "never reviewed, offer everything", so deleting the row would have widened Danville's list;
+and dropping the material would orphan those 13 tests and 3 bins.
 
-So CCI is excluded because it is limestone, not because it is special. The explicit entry in
-`POLISH_RESISTANT_EXCLUDED_MATERIAL_IDS` stays as documentation — the string "CCI" does not read as
-"limestone #10" to anyone who has not been told, and the foreseeable mistake is a future maintainer
-assuming it must be dolomitic and adding it to the allowlist. It is belt-and-braces, not
-load-bearing: 58 was never in the allowlist, so deleting the set would change no result.
+The #10 limestones Danville has drawn on:
+
+| id | Label | Source | Status |
+|---|---|---|---|
+| 50 | `#10` | Rogers Group at Caldwell Stone | offered |
+| 58 | `CCI` | Rogers Group at Caldwell Stone | **retired by `0075`** — same pile as 50 |
+| 16 | `#10` | Dix River Quarry | offered |
+
+…plus Haydon Bardstown's dolomite #10s (ids 3, 4), the same *size designation* and the ones that
+count toward the polish-resistant floor.
+
+CCI is excluded from the polish-resistant set because it is limestone, not because it is special.
+The entry in `POLISH_RESISTANT_EXCLUDED_MATERIAL_IDS` stays: three of those bin rows are from the
+last week of August, so a live sample can still name it, and the string "CCI" does not read as
+"limestone #10" to anyone who has not been told.
+
+**Still open (the other session's migration):** whether 58's 13 tests and 3 bin rows get moved onto
+material 50 so 58 can finally be dropped. Jake has ruled it is one pile, so the merge is right in
+principle. One caution passed to them: material 50's own `#200` readings reach **34%**, which is not
+a #10, so 58's cleaner data would be merged into a set that already looks mis-filed.
+
+### The picker and the saved tests can disagree
+
+`0075` created exactly the divergence to expect from any retirement: `getAggregates` filters on
+`active` so CCI is gone from the stockpile list, while `getSamples` reads bins through
+`test_bin_percentages`, which has no `active` filter, so three recent samples still name it.
+
+That is correct for history and wrong to present as current, so `db.mjs` **marks** it rather than
+hiding or silently correcting it: each bin carries `still_offered`, and each sample carries
+`retired_bins`. A sample is the record of what was actually run, and retiring a stockpile does not
+un-run it.
 
 **The collision this exposes is a step-3 requirement.** `materials.aggregate_type` is literally
 `#10` for BOTH id 50 and id 16, and `materials.description` is NULL for every Danville material. Two
@@ -213,6 +240,8 @@ Step 3 partially done — `lib/db.mjs`, the parts that do not depend on the data
 - Reads are TTL-cached (5 min) and each query is time-bounded; every query spends the same 60s the
   model calls do (§2.2, §3.4).
 - `notes` is tagged `notes_are_untrusted_free_text` at the boundary (rule 10b).
+- Bins carry `still_offered` and samples carry `retired_bins`, so a sample that ran a since-retired
+  stockpile is marked rather than hidden (see the picker/saved-tests divergence above).
 
 Three defects the tests and live checks caught, worth not re-learning:
 

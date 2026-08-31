@@ -56,13 +56,21 @@ export const POLISH_RESISTANT_MATERIAL_IDS = new Set([
 
 // Explicitly excluded, so the answer is written down rather than inferred.
 //
-// What "CCI" actually is (Jake, 2026-08-31): Rogers Group at Caldwell Stone's
-// WASHED #10 limestone. It is not an exotic material -- it is one of THREE #10
-// limestones Danville draws on:
+// What "CCI" actually is (Jake, 2026-08-31): "Rogers only ships 10s, they don't
+// make a cci. Someone randomly named it CCI even though it was still 10s."
+// So it is Rogers Group at Caldwell Stone's #10 limestone under a made-up name.
 //
-//   id 50  #10   Caldwell Stone   (wash unspecified)
-//   id 58  CCI   Caldwell Stone   (washed)        <-- this one
-//   id 16  #10   Dix River Quarry (wash unspecified)
+// Migration 0075 (2026-08-31) deactivated Danville's offer of it, taking the
+// plant from 13 stockpiles to 12. It is NOT deleted and NOT gone from the data:
+// 13 gradation tests and 3 bin rows still point at material 58, three of those
+// bins from the last week of August. A historical sample can therefore still
+// name it, which is why this entry has to stay.
+//
+// The #10 limestones Danville has drawn on:
+//
+//   id 50  #10   Rogers Group at Caldwell Stone  (offered)
+//   id 58  CCI   Rogers Group at Caldwell Stone  (RETIRED by 0075; same pile as 50)
+//   id 16  #10   Dix River Quarry                (offered)
 //
 // So it does not count toward the polish-resistant fraction for the ordinary
 // reason: it is limestone. It is listed here anyway because the string "CCI" is
