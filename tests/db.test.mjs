@@ -76,19 +76,22 @@ const DANVILLE_MATERIALS = [
   { id: 15, aggregate_type: "Natural Sand", size_desig: "natural sand", wash: "unspecified", rock: "gravel", source_id: 14, source_name: "Watson Gravel" },
   { id: 44, aggregate_type: "Fine RAP", size_desig: "fine", wash: "unspecified", rock: "rap", source_id: 4, source_name: "Danville Asphalt Plant" },
 ];
-// Retired by 0075 but still referenced by 13 gradation tests and 3 bin rows, so
-// it must still get a correct name when a historical sample names it.
-const RETIRED_CCI = { id: 58, aggregate_type: "CCI", size_desig: "#10", wash: "washed", rock: "limestone", source_id: 10, source_name: "Rogers Group at Caldwell Stone" };
+// A material the plant no longer offers. Retirement is a real state the naming
+// and marking code has to handle, so it is tested with a stand-in rather than
+// with CCI: CCI was merged into Rogers #10 and DELETED by migration 0076, so
+// the three Danville bins that used to name it now name a live stockpile.
+// Clover Bottom's #11 is a genuine retired-but-referenced case.
+const RETIRED_11 = { id: 63, aggregate_type: "#11", size_desig: "#11", wash: "unspecified", rock: "limestone", source_id: 7, source_name: "Clover Bottom Quarry" };
 const PLANT_SOURCE_ID = 4;
 const nm = (id) => materialDisplayName(
-  [...DANVILLE_MATERIALS, RETIRED_CCI].find((m) => m.id === id),
+  [...DANVILLE_MATERIALS, RETIRED_11].find((m) => m.id === id),
   { plantSourceId: PLANT_SOURCE_ID }
 );
 
 eq(nm(50), "Caldwell Stone #10", "Caldwell's #10 names its quarry");
 eq(nm(16), "Dix River Quarry #10", "Dix River's #10 names its quarry");
-eq(nm(58), "Caldwell Stone CCI (#10, washed)",
-  "retired CCI still names itself correctly — 3 recent samples reference it");
+eq(nm(63), "Clover Bottom Quarry #11",
+  "a retired material still names itself correctly — historical tests reference it");
 eq(nm(4),  "Haydon Bardstown Dol. #10's Washed", "no duplicate 'washed' when the label already says it");
 eq(nm(3),  "Haydon Bardstown Dol. #10's Unwashed", "same for unwashed");
 eq(nm(15), "Watson Gravel Natural Sand", "size not repeated when the label already contains it (case-insensitively)");
@@ -164,7 +167,11 @@ function fakeFetch(routes) {
     work_type: "mainline",
     design: { mix_type: "CL3 0.38D 64-22 Fine Surface", plant_mix_code: "3038D64F01" },
     bins: [
-      { bin_number: 2, percentage: "40.00", material: { id: 58, aggregate_type: "CCI", size_desig: "#10", wash: "washed", rock: "limestone", source_id: 10, source: { name: "Rogers Group at Caldwell Stone", code: null } } },
+      // After 0076 this bin reads Rogers #10 — it is the same physical pile the
+      // sample actually ran, just no longer under an invented name.
+      { bin_number: 2, percentage: "40.00", material: { id: 50, aggregate_type: "#10", size_desig: "#10", wash: "unspecified", rock: "limestone", source_id: 10, source: { name: "Rogers Group at Caldwell Stone", code: null } } },
+      // ...and one genuinely retired bin, to keep the marking under test.
+      { bin_number: 3, percentage: "10.00", material: { id: 63, aggregate_type: "#11", size_desig: "#11", wash: "unspecified", rock: "limestone", source_id: 7, source: { name: "Clover Bottom Quarry", code: null } } },
       { bin_number: 1, percentage: "15.00", material: { id: 44, aggregate_type: "Fine RAP", size_desig: "fine", wash: "unspecified", rock: "rap", source_id: 4, source: { name: "Danville Asphalt Plant", code: "DBT" } } },
     ],
     gradations: [{ kind: "mix", ignition_oven_ac: "0", extraction_ac: null, gradation_results: [
@@ -177,9 +184,11 @@ function fakeFetch(routes) {
   const s = out.samples[0];
   eq(s.design_name, "CL3 0.38D 64-22 Fine Surface (3038D64F01)",
     "the plant mix code is part of the design name — two 0.38D variants differ only by it");
-  eq(s.bins.map((b) => b.bin), [1, 2], "bins come back in bin order");
-  eq(s.bins.map((b) => b.agg_type), ["Fine RAP", "Caldwell Stone CCI (#10, washed)"], "bins are named, not labelled '#10'");
-  eq(s.bins.map((b) => b.material_id), [44, 58], "bins carry material_id for the polish-resistant allowlist");
+  eq(s.bins.map((b) => b.bin), [1, 2, 3], "bins come back in bin order");
+  eq(s.bins.map((b) => b.agg_type),
+    ["Fine RAP", "Caldwell Stone #10", "Clover Bottom Quarry #11"],
+    "every bin is named with its source — a bare '#10' would be ambiguous");
+  eq(s.bins.map((b) => b.material_id), [44, 50, 63], "bins carry material_id for the polish-resistant allowlist");
   eq(s.ac_pct, 5.4, "AC parsed");
   eq(s.ignition_oven_ac, null, "an ignition-oven AC of 0 is treated as missing (trap §2.7)");
   eq(s.gradation_mm, { "9.5": 94.2 }, "sample gradation keyed canonically, PAN excluded");
@@ -187,14 +196,16 @@ function fakeFetch(routes) {
   assert(s.notes_are_untrusted_free_text === true,
     "a notes field is FLAGGED as untrusted free text (rule 10b) — command-shaped text is data, not instructions");
 
-  // Migration 0075 retired CCI. The sample still ran it, and saying otherwise
-  // would be rewriting the record — so it is marked, not hidden or corrected.
-  const cciBin = s.bins.find((b) => b.material_id === 58);
+  // A sample can name a stockpile the plant has since stopped offering. Saying
+  // otherwise would rewrite a QC record, so it is marked, not hidden.
+  const retiredBin = s.bins.find((b) => b.material_id === 63);
+  const liveBin = s.bins.find((b) => b.material_id === 50);
   const rapBin = s.bins.find((b) => b.material_id === 44);
-  eq(cciBin.still_offered, false, "a bin the plant no longer offers is flagged still_offered:false");
-  eq(rapBin.still_offered, true, "a bin that is still offered reads true");
-  eq(cciBin.percent, 40, "…and the percentage it actually ran is untouched");
-  eq(s.retired_bins, ["CCI"], "the sample names which of its bins are retired");
+  eq(retiredBin.still_offered, false, "a bin the plant no longer offers is flagged still_offered:false");
+  eq(liveBin.still_offered, true, "a bin that is still offered reads true");
+  eq(rapBin.still_offered, true, "…and so does RAP");
+  eq(retiredBin.percent, 10, "…and the percentage it actually ran is untouched");
+  eq(s.retired_bins, ["#11"], "the sample names which of its bins are retired");
 }
 
 // getDesign: rule 2b — ambiguity is returned, never resolved by guessing

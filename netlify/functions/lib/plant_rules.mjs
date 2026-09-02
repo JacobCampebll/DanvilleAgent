@@ -54,33 +54,40 @@ export const POLISH_RESISTANT_MATERIAL_IDS = new Set([
   15, // Natural Sand         -- Watson Gravel      (rock = gravel; counts, per BT3 + KYTC)
 ]);
 
-// Explicitly excluded, so the answer is written down rather than inferred.
+// Explicitly excluded, so a "must never count" ruling is written down rather
+// than inferred. Currently EMPTY, and the history is the point:
 //
-// What "CCI" actually is (Jake, 2026-08-31): "Rogers only ships 10s, they don't
-// make a cci. Someone randomly named it CCI even though it was still 10s."
-// So it is Rogers Group at Caldwell Stone's #10 limestone under a made-up name.
+// Danville's only candidate was "CCI" (material 58). Jake, 2026-08-31: "Rogers
+// only ships 10s, they don't make a cci. Someone randomly named it CCI even
+// though it was still 10s." So it was Rogers Group at Caldwell Stone's #10
+// limestone under an invented name -- not a distinct product at all.
 //
-// Migration 0075 (2026-08-31) deactivated Danville's offer of it, taking the
-// plant from 13 stockpiles to 12. It is NOT deleted and NOT gone from the data:
-// 13 gradation tests and 3 bin rows still point at material 58, three of those
-// bins from the last week of August. A historical sample can therefore still
-// name it, which is why this entry has to stay.
+// Migration 0075 stopped Danville offering it (13 stockpiles -> 12). Migration
+// 0076 finished the job: it moved the 13 gradation tests and 3 bin rows onto
+// material 50 (Rogers #10) and deleted material 58. Both applied 2026-08-31.
+// So there is no longer a material to exclude, and the id is not kept here as a
+// tombstone -- an id that resolves to nothing is worse than no entry, because it
+// reads as a live rule.
 //
-// The #10 limestones Danville has drawn on:
+// The #10 limestones Danville draws on, after 0076:
 //
-//   id 50  #10   Rogers Group at Caldwell Stone  (offered)
-//   id 58  CCI   Rogers Group at Caldwell Stone  (RETIRED by 0075; same pile as 50)
+//   id 50  #10   Rogers Group at Caldwell Stone  (offered; now holds 78 tests)
 //   id 16  #10   Dix River Quarry                (offered)
 //
-// So it does not count toward the polish-resistant fraction for the ordinary
-// reason: it is limestone. It is listed here anyway because the string "CCI" is
-// opaque -- it does not read as a limestone #10 to anyone who has not been told,
-// and the risk is a future maintainer assuming it must be something dolomitic
-// and adding it to the allowlist above. This entry is the written answer to that
-// question. It is belt-and-braces, not load-bearing: 58 was never in the
-// allowlist, so removing this set would not change a single result.
+// ...against Haydon Bardstown's dolomite #10s (3, 4), which are the same SIZE
+// DESIGNATION and the ones that do count. That contrast is what the allowlist
+// above exists for, and it is covered by tests rather than by this set.
+//
+// Note for anyone tempted to re-add an entry: "CCI" also exists as material 62,
+// Lexington Quarry's washed #10 limestone (8 gradation tests, offered nowhere as
+// of 2026-08-31). Jake's ruling was about ROGERS specifically, so 62 is NOT
+// covered by it and must not be assumed to be the same situation. It cannot
+// reach a Danville answer today -- it is offered at no location and has no bin
+// rows -- and if that changes it fails the polish-resistant test anyway, for the
+// ordinary reason: it is limestone.
 export const POLISH_RESISTANT_EXCLUDED_MATERIAL_IDS = new Set([
-  58, // CCI = Caldwell Stone washed #10, limestone. Does not count.
+  // Intentionally empty. See above -- add an id only for a material that would
+  // otherwise pass the allowlist and must not, with a comment saying why.
 ]);
 
 // Natural sand, for the MAX_NATURAL_SAND_PCT cap.
@@ -91,7 +98,7 @@ export const NATURAL_SAND_MATERIAL_IDS = new Set([
 export const PLANT_RULES_SUMMARY = [
   `Active bins must be >=${MIN_BIN_PCT}% (0% is OK -- that means drop the product).`,
   `Natural sand must not exceed ${MAX_NATURAL_SAND_PCT}%.`,
-  `On "A" mixes (0.38A, 0.50A) polish-resistant aggregate -- dolomite + natural sand only, not limestone, not CCI and not RAP -- must total at least ${MIN_PRC_PCT}%.`,
+  `On "A" mixes (0.38A, 0.50A) polish-resistant aggregate -- dolomite + natural sand only, not limestone and not RAP -- must total at least ${MIN_PRC_PCT}%.`,
   "If the design already has a bin under 10%, you may hold it or set it to 0%, but do not cut it further between 0 and 10.",
 ].join(" ");
 
@@ -297,7 +304,7 @@ export function validateBinPercents(bins, baseline = null, opts = {}) {
         percent: prc,
         message:
           `Polish-resistant aggregate is ${prc}% -- an "A" mix (${designation}) requires at least ` +
-          `${MIN_PRC_PCT}%. Only dolomite and natural sand count toward it; limestone, CCI and RAP do not. ` +
+          `${MIN_PRC_PCT}%. Only dolomite and natural sand count toward it; limestone and RAP do not. ` +
           `Raise dolomite and/or natural sand by ${Math.round((MIN_PRC_PCT - prc) * 10) / 10} points.`,
       });
     }

@@ -37,7 +37,7 @@ gradation tests. So:
 | `MIN_BIN_PCT` | **10** — same as BT3, copy unchanged |
 | `MAX_NATURAL_SAND_PCT` | **15** — same as BT3, copy unchanged |
 | `MIN_PRC_PCT` | **70** — applies at Danville (KYTC floor on "A" mixes; DBT runs an 0.38A and an 0.50A) |
-| Polish-resistant set | Only **Haydon Bardstown's dolomite** (ids 3, 4, 5) and **natural sand** (15) count. Explicit commented allowlist by material id — **not** BT3's regex on `agg_type`. `CCI` does not count: it is Caldwell Stone's washed #10 **limestone** (see below), so it fails for the ordinary reason. |
+| Polish-resistant set | Only **Haydon Bardstown's dolomite** (ids 3, 4, 5) and **natural sand** (15) count. Explicit commented allowlist by material id — **not** BT3's regex on `agg_type`. The exclusion set is a mechanism and is currently **empty**; `CCI` no longer exists as a material (see below). |
 | Netlify site | **Its own site**: own subdomain, own env vars, own `SITE_PASSWORD`, own model keys, own rate-limit budget, own Blobs store. A bad DBT deploy must not be able to take BT3 down. |
 | `location_id` | **Parameterize `lib/db.mjs` from the start**, default `4`. BT3 is `1`. This is not a bet on back-porting BT3 — it is cheaper today than retrofitting later. Build nothing else for BT3's sake. |
 | `plant_log` | **Open.** Default to Netlify Blobs as BT3 has it; raise with Jake before build-order step 7. |
@@ -60,12 +60,13 @@ What the agent needs the app to end up producing, in priority order:
    below.
 
 **What does NOT need fixing in the app:** the display-name collision. `materials.description` is
-NULL for all 14 Danville materials and `aggregate_type` is `#10` for both id 50 (Caldwell Stone) and
-id 16 (Dix River), but a unique, tech-readable name is already **derivable** from
-`source_id` + `size_desig` + `wash` — "Caldwell Stone #10", "Dix River #10", "Caldwell Stone #10
-Washed (CCI)", "Haydon Dol. #10 Washed". `lib/db.mjs` should derive it at the serialization boundary,
-the same single-choke-point discipline as the id scrub (brief §2.3). Populating `description` by hand
-would be a second source of truth that drifts.
+NULL for all 13 of Danville's material rows (12 active, after `0076`), and `aggregate_type` is `#10`
+for both id 50 (Rogers Group at Caldwell Stone) and id 16 (Dix River) — two quarries, one identical
+label. But a unique, tech-readable name is already **derivable** from `source_id` + `size_desig` +
+`wash`: "Caldwell Stone #10", "Dix River Quarry #10", "Haydon Bardstown Dol. #10's Washed".
+`lib/db.mjs` derives it at the serialization boundary, the same single-choke-point discipline as the
+id scrub (brief §2.3). Populating `description` by hand would be a second source of truth that
+drifts.
 
 **How to build so the fix lands without a rewrite:** prefer `material_id` wherever it exists and
 degrade honestly where it does not. `plant_rules.mjs` already does exactly this — an id-less bin is
@@ -121,12 +122,19 @@ Three separate vocabularies, verified against the live database:
 |---|---|
 | KYTC spec sizes (`aggregate_spec_sizes`) | No. 8, No. 9-M, No. 10, No. 11, No. 57, No. 67, DGA, … |
 | **Design** components (`mix_components.component_name`) | `#10, #5, #57, #67, #9, CC #10, CC #67, CC #9, G #10, G #8, NS, RAP` |
-| **Running** bins (`test_bin_percentages` → `materials`) | `#10, #57, #67, #8, CCI, Fine RAP, Natural Sand` |
+| **Running** bins (`test_bin_percentages` → `materials`) | `#10, #57, #67, #8, Fine RAP, Natural Sand` |
 
 A design component is a **size designation**, sometimes carrying a source prefix (`CC`, `G`). A bin
-holds a **specific product**. The `CL3 0.75D 64-22 Base` design reads `#10 / #57 / #9 / RAP`; the
-plant runs it as `CCI / #57 / #8 / Fine RAP`. Those are not the same materials, and the substitution
-is a real plant decision, not a typo.
+holds a **specific product**. The `CL3 0.75D 64-22 Base` design reads
+`#57 30% / #10 30% / #9 25% / RAP 15%`; the plant runs it as
+`#10 30% / #57 30% / #8 25% / Fine RAP 15%`.
+
+The clearest single proof that these are different vocabularies: the design calls for **`#9`**, and
+Danville has **no `#9` material at all** — the plant runs `#8` in that bin. That is a real plant
+decision, not a typo, and no mapping table can make `#9` resolve to a product that does not exist.
+
+(Before migration `0076` that bin-2 material read `CCI`, which made the contrast look starker than it
+is. The substitution it illustrates is real either way.)
 
 So:
 
@@ -147,81 +155,97 @@ So:
 are indeterminate, excluded from the PRC total, and reported as a `prc_indeterminate` warning saying
 the number is a lower bound and not a pass. That path now has a permanent reason to exist.
 
-### "CCI" is not a product — and it is retired, not gone
+### "CCI" was not a product, and it is now gone
 
 Jake, 2026-08-31: *"Rogers only ships 10s, they don't make a cci. Someone randomly named it CCI even
-though it was still 10s."* So material 58 is Rogers Group at Caldwell Stone's #10 limestone under a
-name someone invented.
+though it was still 10s."* So material 58 was Rogers Group at Caldwell Stone's #10 limestone under an
+invented name — not a distinct product.
 
-**Migration `0075_rogers_cci_not_a_product` was applied to production on 2026-08-31**
-(version `20260831175704`), deactivating Danville's offer of it. Danville went from 13 offered
-stockpiles to 12. Verified after applying: CCI offered nowhere, its `location_materials` row still
-present but inactive, and **13 gradation tests and 3 bin rows untouched**.
+Two migrations, both **applied to production 2026-08-31**, after reading the SQL and verifying every
+guard against live data:
 
-Deactivated, not deleted, and that distinction is load-bearing twice over: a location with *no* rows
-reads as "never reviewed, offer everything", so deleting the row would have widened Danville's list;
-and dropping the material would orphan those 13 tests and 3 bins.
+| Migration | Effect |
+|---|---|
+| `0075_rogers_cci_not_a_product` (`20260831175704`) | stopped Danville **offering** it — 13 stockpiles → 12 |
+| `0076_merge_rogers_cci_into_10` | moved its **13 gradation tests and 3 bin rows** onto material 50 (Rogers `#10`), then **deleted material 58** |
 
-The #10 limestones Danville has drawn on:
+Verified after `0076`: 78 tests on Rogers `#10` (65 + 13), material 58 gone, all 16 moved ids landed
+on 50, **zero orphaned** gradation tests or bin rows, Danville still at 12 offered stockpiles.
 
-| id | Label | Source | Status |
+**The reversal record lives in the migration, not in a log.** `0076` raises the moved ids as a
+`NOTICE`, and its header says the merge is irreversible without them — but `apply_migration` does not
+surface `NOTICE` output (`0075` returned a bare `{"success":true}`). So the ids were captured by
+`SELECT` immediately *before* applying, and written into the migration's own `WHAT MOVED` block:
+
+```
+aggregate_gradation_tests: 4032, 4038, 4040, 4047, 4055, 4057, 4060, 4062, 4066, 4076, 4089, 4150, 4167
+test_bin_percentages:      133, 141, 152
+```
+
+Generalisable: when a plan depends on capturing output a tool does not return, capture it beforehand
+by other means rather than running the step and hoping.
+
+The #10 limestones Danville draws on, after `0076`:
+
+| id | Label | Source | Note |
 |---|---|---|---|
-| 50 | `#10` | Rogers Group at Caldwell Stone | offered |
-| 58 | `CCI` | Rogers Group at Caldwell Stone | **retired by `0075`** — same pile as 50 |
-| 16 | `#10` | Dix River Quarry | offered |
+| 50 | `#10` | Rogers Group at Caldwell Stone | now holds 78 tests |
+| 16 | `#10` | Dix River Quarry | |
 
-…plus Haydon Bardstown's dolomite #10s (ids 3, 4), the same *size designation* and the ones that
-count toward the polish-resistant floor.
+…against Haydon Bardstown's dolomite #10s (3, 4) — the same *size designation*, and the ones that
+count toward the polish-resistant floor. That contrast is what the allowlist is for, and it is held
+by tests rather than by an exclusion entry.
 
-CCI is excluded from the polish-resistant set because it is limestone, not because it is special.
-The entry in `POLISH_RESISTANT_EXCLUDED_MATERIAL_IDS` stays: three of those bin rows are from the
-last week of August, so a live sample can still name it, and the string "CCI" does not read as
-"limestone #10" to anyone who has not been told.
+**`POLISH_RESISTANT_EXCLUDED_MATERIAL_IDS` is now empty**, deliberately. Material 58 is deleted, and
+an id that resolves to nothing is worse than no entry — it reads as a live rule while doing nothing.
 
-**Still open (the other session's migration):** whether 58's 13 tests and 3 bin rows get moved onto
-material 50 so 58 can finally be dropped. Jake has ruled it is one pile, so the merge is right in
-principle. One caution passed to them: material 50's own `#200` readings reach **34%**, which is not
-a #10, so 58's cleaner data would be merged into a set that already looks mis-filed.
+**"CCI" also exists as material 62** — Lexington Quarry's washed #10 limestone, 8 gradation tests,
+offered at no location. Jake's ruling was about **Rogers specifically**, so `0076` was correctly
+scoped and 62 must **not** be assumed to be the same situation. It cannot reach a Danville answer
+today (offered nowhere, no bin rows), and if that changes it fails the polish-resistant test for the
+ordinary reason: it is limestone.
+
+**Still open, and not the merge's doing:** material 50's own `#200` readings reach **34.08%**, which
+is dust, not a #10. That predates `0076`. Because the moved ids are recorded, the 13 that arrived
+stay separable from the 65 already there, so whoever investigates can tell the populations apart.
 
 ### The picker and the saved tests can disagree
 
-`0075` created exactly the divergence to expect from any retirement: `getAggregates` filters on
-`active` so CCI is gone from the stockpile list, while `getSamples` reads bins through
-`test_bin_percentages`, which has no `active` filter, so three recent samples still name it.
+`0075` created the divergence any retirement creates: `getAggregates` filters on `active`, while
+`getSamples` reads bins through `test_bin_percentages`, which has no `active` filter — so a sample
+can name a stockpile the plant no longer offers.
 
-That is correct for history and wrong to present as current, so `db.mjs` **marks** it rather than
-hiding or silently correcting it: each bin carries `still_offered`, and each sample carries
+`0076` removed the CCI instance of it: those three Danville bins now name Rogers `#10`, a live
+stockpile. **The mechanism stays, because the situation recurs** — Clover Bottom Quarry's `#11`
+(id 63) is a genuine retired-but-referenced material, and it is what the tests use now.
+
+`db.mjs` **marks** rather than hides: each bin carries `still_offered`, each sample carries
 `retired_bins`. A sample is the record of what was actually run, and retiring a stockpile does not
 un-run it.
 
-**The collision this exposes is a step-3 requirement.** `materials.aggregate_type` is literally
-`#10` for BOTH id 50 and id 16, and `materials.description` is NULL for every Danville material. Two
-different quarries, one identical display label. Non-negotiable 7 says techs speak in names and ids
-never appear in an answer — which means **the name the agent shows must carry the source**, e.g.
-"Caldwell #10", "Dix River #10", "Caldwell #10 washed (CCI)", "Haydon Dol. #10 Washed". A bare `#10`
-in an answer is ambiguous between three materials with different rock types, and picking the wrong
-one silently changes the polish-resistant math. Same lesson as rule 2b: a label alone does not
-identify a thing.
-
-Design component prefixes decode against these sources, which is what the `CC` / `G` in
-`mix_components.component_name` are for — `CC #10` / `CC #9` / `CC #67` are Caldwell Stone,
-`G #8` / `G #10` are Gaddie Shamrock. **Unconfirmed:** what a bare `#10` or `#9` means in a design
-(most likely Caldwell, which supplies most sizes) — ask before relying on it.
-
 ## Status
 
-Steps 1–2 of brief §3.5 done, on `claude/danville-qc-design-vrn0zc`:
+Brief §3.5 **steps 1–2 done and merged to `main`** (PR #1, merge `fc4e075`), with step 3 partially
+done on top. The Netlify site `danville` builds `main` and serves the `public/` placeholder; verified
+on the live site that `CLAUDE.md`, the brief, `package.json`, `netlify.toml`, `tests/` and
+`netlify/functions/` all 404 — `publish = "public"` confirmed working rather than assumed. There is
+no deployed function yet, so nothing answers a question: `/` says so in as many words.
+
+Steps 1–2:
 
 - `netlify.toml` with `publish = "public"` from the first commit; `package.json` without `pdf-parse`
   (BT3's second dependency existed only for the wash-sieve PDF upload, which §3.1 deletes).
 - Plant-independent core copied **byte-identical** from BT3 `f28ee70`, sha256-verified:
   `bailey_calc.mjs`, `bailey_kb.mjs`, `spec.mjs`. Do not edit these — they are the ported math.
 - `plant_rules.mjs` re-authored for Danville: §3.7's constants, the polish-resistant allowlist by
-  material id, CCI excluded by id with a comment saying why. **Its exported shapes are a contract** —
+  material id. The exclusion set is a documented mechanism, currently empty — `CCI` was merged away
+  by `0076`. **Its exported shapes are a contract** —
   the copied `bailey_calc.mjs` calls `prcPercent()` as a number and `isNaturalSand()` as a boolean.
-- `tests/plant_rules.test.mjs` — 35 assertions, green, re-authored against Danville materials and
-  design names. Includes the CCI golden case §3.7 asks for: a blend that reads 50% excluding CCI and
-  would read 85% counting it, passing only when the calculator calls it a violation.
+- `tests/plant_rules.test.mjs` — 38 assertions, green, re-authored against Danville materials and
+  design names. Carries the case §3.7 asks for, re-authored after `0076`: a blend where a limestone
+  `#10` holds 35% reads 50% polish-resistant and would read 85% if that bin were miscounted, passing
+  only when the calculator calls it a violation. Material 50 is the stand-in for the phantom CCI, and
+  it is not hypothetical — the three samples that used to read CCI at 30–50% now read Rogers `#10`.
 
 Step 3 partially done — `lib/db.mjs`, the parts that do not depend on the data-app fix:
 
@@ -235,13 +259,15 @@ Step 3 partially done — `lib/db.mjs`, the parts that do not depend on the data
   volumetrics. Components are carried through in spec-size vocabulary and flagged
   `resolved: false`; they are **not** mapped to materials, pending the data-app fix.
 - **Display names are derived here, at one choke point** — `source` + `size` + `wash`, never a stored
-  `description`. All 13 active Danville materials get unique names, and a residual clash is *reported*
+  `description`. All 12 active Danville materials get unique names, and a residual clash is *reported*
   rather than passing silently.
 - Reads are TTL-cached (5 min) and each query is time-bounded; every query spends the same 60s the
   model calls do (§2.2, §3.4).
 - `notes` is tagged `notes_are_untrusted_free_text` at the boundary (rule 10b).
 - Bins carry `still_offered` and samples carry `retired_bins`, so a sample that ran a since-retired
   stockpile is marked rather than hidden (see the picker/saved-tests divergence above).
+- `tests/db.test.mjs` — 67 assertions, green, offline against fixtures shaped like PostgREST
+  responses. `npm test` runs both suites (105 assertions total).
 
 Three defects the tests and live checks caught, worth not re-learning:
 
@@ -261,7 +287,86 @@ Still to do on step 3: nothing that does not depend on the data-app fix. When
 `mix_components` gains material resolution, `getDesign` starts reporting
 `components_resolved: true` and design-level PRC and `jmf_drift` come online with no code change.
 
-Next after that: step 4, port `runLoop` and the answer guarantee verbatim (§2.1, §2.2).
+Step 4 done — `netlify/functions/agent.mjs`, ported from BT3 `f28ee70`:
 
-BT3's `tests/bailey_calc.test.mjs` is deliberately **not** committed yet — it imports `agent.mjs`
-(step 4) and its PRC block is BT3 fixtures. Re-copy and re-author it at step 6.
+- **The loop is BT3's, unchanged**: `runLoop`, SSE, the dual/triple provider, `callModelRetry`, the
+  wall-clock budget, the forced answer and the post-loop answer-only retry. `tests/agent_loop.test.mjs`
+  passes as copied — *"tool work is never thrown away; tech always gets an answer"* (§2.1). Rate
+  limiting (18 assertions) and provider resilience (23) pass too.
+- **Seven tools, not eight.** `query_dataverse` (BT3's stub, blocked on IT since day one) is replaced
+  by **`get_samples`**, live off `volumetric_tests` + `test_bin_percentages`. `get_design` and
+  `get_aggregates` read Supabase. `search_bailey`, `search_spec`, `bailey_calc` and `plant_log` are
+  BT3's unchanged.
+- **`search_contracts` is dropped**, on Jake's call. Its corpus is 8.5 MB of *Boonesborough* jobs, and
+  answering a Danville tech out of another plant's contracts is worse than not answering. Danville's
+  contracts are in Supabase (`contracts` / `contract_bid_items` / `bid_items` / `projects`); the tool
+  returns when `lib/db.mjs` grows a `searchContracts`. `?contracts` / `?contract` answer **501**, not
+  404, so a stale client is told the feature is absent rather than that it mistyped.
+- **The calculator never learns the data moved.** `bailey_calc.mjs` is synchronous and asks for two
+  things: the stockpile catalog and the one design named in `input.jmf_id`. Both are resolved *before*
+  the call at each of the two call sites, so the copied file stays byte-identical.
+- **The PDF path is gone**: no `upload_gradation`, no Blobs gradation overrides, no `pdf-parse`.
+  `?gradations=1` now reports `now() - test_date` off the live tests. package.json stays at one
+  dependency.
+- **A missing env var is diagnosable, not a stack trace.** `dbErrorResponse()` turns a `DbError` on a
+  no-model route into a 503 naming the likely cause — vars saved in the Netlify UI are invisible to an
+  older deploy until it is redeployed — and pointing at `?envcheck`. The deterministic calc path
+  degrades to an empty catalog instead of 500-ing.
+- Identifiers: `X-BT3-Site-Key` → **`X-DBT-Site-Key`**, plant label `DBT`, doctrine re-pointed.
+- Doctrine gains **rule 10a**: a sample's own bins beat both a retyped bin list and the design's
+  components, and a `still_offered: false` bin is reported rather than treated as current.
+
+Step 6 done — the golden cases, re-authored rather than copied:
+
+- **`lib/golden_cases.mjs` — 24 cases (13 core + 11 mix)**, so `?golden=1` answers instead of 500-ing.
+  The count is **22 BT3 behaviours, all of them, plus 2 Danville-only**, and the file states that
+  accounting at the top so nobody has to reconstruct it. The two additions are situations BT3 cannot
+  have: `no-design-va-recorded` (design volumetrics are NULL for every Danville design) and
+  `design-components-are-not-stockpiles`. Four BT3 cases map to Danville names that read nothing like
+  theirs — the header lists the mapping, including `sp-override-contract` →
+  `no-contracts-tool-say-so`, which is **inverted** on purpose: BT3 checked its proposals corpus, and
+  the right answer here is that Danville cannot see contracts at all.
+- **The fingerprint pair is the whole reason for §3.5's golden step**, and Danville's is nastier than
+  BT3's: `CL3 0.38D 64-22 Fine Surface` is both an exact match and a prefix of
+  `... Fine Surface (3038D64F01)`, and the two carry identical components and AC. The second
+  fingerprint case rides an uglier hole — `CL3 0.38D 64-22 State Surface` has `optimum_ac_pct` **NULL
+  and no components at all**, while `... State Surface (3038D64C01)` has AC 5.70, so a pay answer that
+  guesses gets an AC deviation against a phantom target. That is BT3's `fingerprint-038b-with-11s`
+  behaviour on live Danville data.
+- Every prompt is grounded against the live db (verified 2026-09-02, after `0076`): AC targets, bin
+  percentages, and the one genuinely stale stockpile (Gaddie Shamrock's `LS #8's Class B`, sieved
+  2025-11-16, 290 days, against everything else inside 45).
+- **`tests/golden_cases.test.mjs` — 327 assertions, offline, in `npm test`.** It grades the *cases*,
+  because a badly written assertion is worse than a missing one: it reports green while checking
+  nothing. It turns BT3's two grading lessons into checks, and **the unit rule caught three of my own
+  assertions on its first run** — `mustMatch: ["10"]` on the 1.00D Base, which carries `#10` at 21%,
+  would have passed on essentially any answer.
+- **`tests/golden/run_golden.mjs`** — BT3's runner, plus the three things Danville needs: the
+  `X-DBT-Site-Key` header (BT3's copy 401s here and reaches nothing), a 429 reported as
+  **RATE-LIMITED rather than FAIL** with one Retry-After-honouring retry, and `grok` as the default
+  provider because `XAI_API_KEY` is the only model key the site has. An ungraded case is not a pass —
+  the runner exits non-zero so a rate-limited run cannot read as green.
+
+**Known gap, stated in the file rather than papered over: the golden suite does NOT guard
+non-negotiable 7 (ids never reach an answer).** The ported `mustNotMatch: ["\b\d{8}\b"]` cannot
+fire at Danville — `mix_designs.id` runs 48–96 and material ids are 1–2 digits. Same arithmetic makes
+`agent.mjs`'s `scrubJmfIds` (a `\b\d{4,8}\b` text replace) inert here, and widening it to `\d{1,8}`
+would be a disaster: at Danville a small integer is indistinguishable from a bin percentage or a sieve
+reading, so every "10%" would be rewritten into a design name. Rule 7 has to be enforced by **not
+serializing the ids in the first place**, at `db.mjs`'s boundary, and tested in `tests/db.test.mjs`.
+That work is outstanding and is not something a golden case can cover.
+
+`npm test` runs six suites — **473 assertions, green.**
+
+**The golden suite cannot be run from this repo.** It grades the *deployed* agent: the model keys and
+`SITE_PASSWORD` live in Netlify, not in a checkout. §3.9's "green before it ships to techs" is
+therefore Jake's step, via the in-app Doctrine panel or
+`DBT_SITE_KEY=… node tests/golden/run_golden.mjs`. Grok varies run to run — run twice before treating
+a hard failure as a doctrine break.
+
+Next: step 7, the frontend. **BT3's `index.html` is deliberately NOT ported yet** — it is BT3-branded
+and its contracts and wash-sieve-upload panels point at routes that no longer exist, so swapping it in
+would replace an honest "not in service" placeholder with a UI full of broken buttons.
+
+BT3's `tests/bailey_calc.test.mjs` is still **not** committed: its PRC block is BT3 fixtures and needs
+re-authoring against Danville materials, the same treatment the golden cases just got.
