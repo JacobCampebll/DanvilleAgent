@@ -287,7 +287,42 @@ Still to do on step 3: nothing that does not depend on the data-app fix. When
 `mix_components` gains material resolution, `getDesign` starts reporting
 `components_resolved: true` and design-level PRC and `jmf_drift` come online with no code change.
 
-Next after that: step 4, port `runLoop` and the answer guarantee verbatim (§2.1, §2.2).
+Step 4 done — `netlify/functions/agent.mjs`, ported from BT3 `f28ee70`:
+
+- **The loop is BT3's, unchanged**: `runLoop`, SSE, the dual/triple provider, `callModelRetry`, the
+  wall-clock budget, the forced answer and the post-loop answer-only retry. `tests/agent_loop.test.mjs`
+  passes as copied — *"tool work is never thrown away; tech always gets an answer"* (§2.1). Rate
+  limiting (18 assertions) and provider resilience (23) pass too.
+- **Seven tools, not eight.** `query_dataverse` (BT3's stub, blocked on IT since day one) is replaced
+  by **`get_samples`**, live off `volumetric_tests` + `test_bin_percentages`. `get_design` and
+  `get_aggregates` read Supabase. `search_bailey`, `search_spec`, `bailey_calc` and `plant_log` are
+  BT3's unchanged.
+- **`search_contracts` is dropped**, on Jake's call. Its corpus is 8.5 MB of *Boonesborough* jobs, and
+  answering a Danville tech out of another plant's contracts is worse than not answering. Danville's
+  contracts are in Supabase (`contracts` / `contract_bid_items` / `bid_items` / `projects`); the tool
+  returns when `lib/db.mjs` grows a `searchContracts`. `?contracts` / `?contract` answer **501**, not
+  404, so a stale client is told the feature is absent rather than that it mistyped.
+- **The calculator never learns the data moved.** `bailey_calc.mjs` is synchronous and asks for two
+  things: the stockpile catalog and the one design named in `input.jmf_id`. Both are resolved *before*
+  the call at each of the two call sites, so the copied file stays byte-identical.
+- **The PDF path is gone**: no `upload_gradation`, no Blobs gradation overrides, no `pdf-parse`.
+  `?gradations=1` now reports `now() - test_date` off the live tests. package.json stays at one
+  dependency.
+- **A missing env var is diagnosable, not a stack trace.** `dbErrorResponse()` turns a `DbError` on a
+  no-model route into a 503 naming the likely cause — vars saved in the Netlify UI are invisible to an
+  older deploy until it is redeployed — and pointing at `?envcheck`. The deterministic calc path
+  degrades to an empty catalog instead of 500-ing.
+- Identifiers: `X-BT3-Site-Key` → **`X-DBT-Site-Key`**, plant label `DBT`, doctrine re-pointed.
+- Doctrine gains **rule 10a**: a sample's own bins beat both a retyped bin list and the design's
+  components, and a `still_offered: false` bin is reported rather than treated as current.
+
+`npm test` runs five suites — 146 assertions, green.
+
+Next: step 6, re-author the 22 golden cases against Danville designs (`?golden=1` currently 500s
+because `lib/golden_cases.mjs` does not exist yet), then step 7, the frontend. **BT3's `index.html` is
+deliberately NOT ported yet** — it is BT3-branded and its contracts and wash-sieve-upload panels point
+at routes that no longer exist, so swapping it in would replace an honest "not in service" placeholder
+with a UI full of broken buttons.
 
 BT3's `tests/bailey_calc.test.mjs` is deliberately **not** committed yet — it imports `agent.mjs`
 (step 4) and its PRC block is BT3 fixtures. Re-copy and re-author it at step 6.

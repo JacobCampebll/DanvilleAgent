@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node tests/plant_rules.test.mjs && node tests/db.test.mjs"
+    "test": "node tests/plant_rules.test.mjs && node tests/db.test.mjs && node tests/agent_loop.test.mjs && node tests/rate_limit.test.mjs && node tests/provider_resilience.test.mjs"
   },
   "dependencies": {
     "@netlify/blobs": "^8.1.0"
