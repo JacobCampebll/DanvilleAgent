@@ -316,13 +316,57 @@ Step 4 done — `netlify/functions/agent.mjs`, ported from BT3 `f28ee70`:
 - Doctrine gains **rule 10a**: a sample's own bins beat both a retyped bin list and the design's
   components, and a `still_offered: false` bin is reported rather than treated as current.
 
-`npm test` runs five suites — 146 assertions, green.
+Step 6 done — the golden cases, re-authored rather than copied:
 
-Next: step 6, re-author the 22 golden cases against Danville designs (`?golden=1` currently 500s
-because `lib/golden_cases.mjs` does not exist yet), then step 7, the frontend. **BT3's `index.html` is
-deliberately NOT ported yet** — it is BT3-branded and its contracts and wash-sieve-upload panels point
-at routes that no longer exist, so swapping it in would replace an honest "not in service" placeholder
-with a UI full of broken buttons.
+- **`lib/golden_cases.mjs` — 24 cases (13 core + 11 mix)**, so `?golden=1` answers instead of 500-ing.
+  The count is **22 BT3 behaviours, all of them, plus 2 Danville-only**, and the file states that
+  accounting at the top so nobody has to reconstruct it. The two additions are situations BT3 cannot
+  have: `no-design-va-recorded` (design volumetrics are NULL for every Danville design) and
+  `design-components-are-not-stockpiles`. Four BT3 cases map to Danville names that read nothing like
+  theirs — the header lists the mapping, including `sp-override-contract` →
+  `no-contracts-tool-say-so`, which is **inverted** on purpose: BT3 checked its proposals corpus, and
+  the right answer here is that Danville cannot see contracts at all.
+- **The fingerprint pair is the whole reason for §3.5's golden step**, and Danville's is nastier than
+  BT3's: `CL3 0.38D 64-22 Fine Surface` is both an exact match and a prefix of
+  `... Fine Surface (3038D64F01)`, and the two carry identical components and AC. The second
+  fingerprint case rides an uglier hole — `CL3 0.38D 64-22 State Surface` has `optimum_ac_pct` **NULL
+  and no components at all**, while `... State Surface (3038D64C01)` has AC 5.70, so a pay answer that
+  guesses gets an AC deviation against a phantom target. That is BT3's `fingerprint-038b-with-11s`
+  behaviour on live Danville data.
+- Every prompt is grounded against the live db (verified 2026-09-02, after `0076`): AC targets, bin
+  percentages, and the one genuinely stale stockpile (Gaddie Shamrock's `LS #8's Class B`, sieved
+  2025-11-16, 290 days, against everything else inside 45).
+- **`tests/golden_cases.test.mjs` — 327 assertions, offline, in `npm test`.** It grades the *cases*,
+  because a badly written assertion is worse than a missing one: it reports green while checking
+  nothing. It turns BT3's two grading lessons into checks, and **the unit rule caught three of my own
+  assertions on its first run** — `mustMatch: ["10"]` on the 1.00D Base, which carries `#10` at 21%,
+  would have passed on essentially any answer.
+- **`tests/golden/run_golden.mjs`** — BT3's runner, plus the three things Danville needs: the
+  `X-DBT-Site-Key` header (BT3's copy 401s here and reaches nothing), a 429 reported as
+  **RATE-LIMITED rather than FAIL** with one Retry-After-honouring retry, and `grok` as the default
+  provider because `XAI_API_KEY` is the only model key the site has. An ungraded case is not a pass —
+  the runner exits non-zero so a rate-limited run cannot read as green.
 
-BT3's `tests/bailey_calc.test.mjs` is deliberately **not** committed yet — it imports `agent.mjs`
-(step 4) and its PRC block is BT3 fixtures. Re-copy and re-author it at step 6.
+**Known gap, stated in the file rather than papered over: the golden suite does NOT guard
+non-negotiable 7 (ids never reach an answer).** The ported `mustNotMatch: ["\b\d{8}\b"]` cannot
+fire at Danville — `mix_designs.id` runs 48–96 and material ids are 1–2 digits. Same arithmetic makes
+`agent.mjs`'s `scrubJmfIds` (a `\b\d{4,8}\b` text replace) inert here, and widening it to `\d{1,8}`
+would be a disaster: at Danville a small integer is indistinguishable from a bin percentage or a sieve
+reading, so every "10%" would be rewritten into a design name. Rule 7 has to be enforced by **not
+serializing the ids in the first place**, at `db.mjs`'s boundary, and tested in `tests/db.test.mjs`.
+That work is outstanding and is not something a golden case can cover.
+
+`npm test` runs six suites — **473 assertions, green.**
+
+**The golden suite cannot be run from this repo.** It grades the *deployed* agent: the model keys and
+`SITE_PASSWORD` live in Netlify, not in a checkout. §3.9's "green before it ships to techs" is
+therefore Jake's step, via the in-app Doctrine panel or
+`DBT_SITE_KEY=… node tests/golden/run_golden.mjs`. Grok varies run to run — run twice before treating
+a hard failure as a doctrine break.
+
+Next: step 7, the frontend. **BT3's `index.html` is deliberately NOT ported yet** — it is BT3-branded
+and its contracts and wash-sieve-upload panels point at routes that no longer exist, so swapping it in
+would replace an honest "not in service" placeholder with a UI full of broken buttons.
+
+BT3's `tests/bailey_calc.test.mjs` is still **not** committed: its PRC block is BT3 fixtures and needs
+re-authoring against Danville materials, the same treatment the golden cases just got.
