@@ -16,8 +16,10 @@ function assert(cond, label) {
 // quarries and only Haydon Bardstown's are dolomite.
 const DOL_8 = 5, DOL_10W = 4, DOL_10U = 3;   // Haydon Bardstown (dolomite)
 const NAT_SAND = 15;                          // Watson Gravel
-const CCI = 58;                               // Caldwell Stone WASHED #10 (limestone)
-const CALDWELL_10 = 50, DIX_RIVER_10 = 16;    // the other two #10 limestones
+// Rogers Group at Caldwell Stone's #10. Migration 0076 (2026-08-31) merged the
+// material formerly called "CCI" into this one and deleted it, so 50 is now the
+// only Rogers #10 and carries all 78 of its gradation tests.
+const CALDWELL_10 = 50, DIX_RIVER_10 = 16;    // the two #10 limestones
 const LS_10 = DIX_RIVER_10, LS_57 = 57, FINE_RAP = 44;
 const bin = (material_id, agg_type, percent) => ({ material_id, agg_type, percent });
 
@@ -34,37 +36,46 @@ assert(pr.isPolishResistant(bin(NAT_SAND, "Natural Sand", 10)) === true, "natura
 assert(pr.isPolishResistant(bin(LS_10, "#10", 20)) === false, "limestone does not count");
 assert(pr.isPolishResistant(bin(FINE_RAP, "Fine RAP", 13)) === false, "RAP does not count");
 
-// THE CCI CASE — the golden case brief 3.7 asks for. CCI is Caldwell Stone's
-// washed #10 limestone (Jake, 2026-08-31), so it fails the polish-resistant test
-// for the ordinary reason rather than a special one. Still worth locking: the
-// label "CCI" does not read as limestone to anyone who has not been told, and a
-// blend leaning on it clears 70% if it is miscounted and fails if it is not.
+// THE CASE BRIEF 3.7 ASKS FOR, re-authored after migration 0076.
+//
+// 3.7 asked for a blend "containing CCI, where counting CCI would clear 70% and
+// excluding it does not". CCI turned out not to be a product -- it was Rogers
+// Group's #10 under an invented name, and 0076 merged it into material 50 and
+// deleted it. The behaviour the case locks is what mattered, not the label: a
+// limestone #10 carrying a big share of the blend must not count toward the 70%
+// floor, however it is named or whichever quarry shipped it.
+//
+// Material 50 is the right stand-in and not a hypothetical: the three Danville
+// samples that used to read "CCI" at 30-50% now read Rogers #10.
 {
-  const withCci = [
+  const leaningOnLimestone = [
     bin(DOL_8, "Dolomite #8's", 40),
-    bin(CCI, "CCI", 35),
+    bin(CALDWELL_10, "#10", 35),
     bin(NAT_SAND, "Natural Sand", 10),
-    bin(LS_10, "#10", 15),
+    bin(DIX_RIVER_10, "#10", 15),
   ];
-  assert(pr.isPolishResistant(bin(CCI, "CCI", 35)) === false, "CCI does NOT count toward PRC");
-  assert(pr.prcPercent(withCci) === 50, "PRC excluding CCI = 50 (would read 85 if CCI counted)");
-  const v = pr.validateBinPercents(withCci, null, { mix_designation: "CL3 0.38A 64-22 Surface" });
+  assert(pr.isPolishResistant(bin(CALDWELL_10, "#10", 35)) === false, "Rogers #10 does NOT count toward PRC");
+  assert(pr.prcPercent(leaningOnLimestone) === 50,
+    "PRC = 50 excluding the limestone #10s (would read 85 if the 35% bin were miscounted)");
+  const v = pr.validateBinPercents(leaningOnLimestone, null, { mix_designation: "CL3 0.38A 64-22 Surface" });
   const hit = v.violations.find((x) => x.rule === "min_prc_pct");
-  assert(!!hit, "an A mix leaning on CCI is a PRC VIOLATION, not a pass");
-  assert(hit && /CCI/.test(hit.message), "the violation message names CCI as not counting");
+  assert(!!hit, "an A mix leaning on a limestone #10 is a PRC VIOLATION, not a pass");
+  assert(hit && /limestone/.test(hit.message), "the violation message says limestone does not count");
 }
 
-// CCI stays excluded even if materials.rock is later changed to dolomite —
-// the exclusion is by id and explicit, not an emergent property of a pattern.
-assert(pr.POLISH_RESISTANT_EXCLUDED_MATERIAL_IDS.has(CCI), "CCI is excluded by id, explicitly");
-assert(pr.POLISH_RESISTANT_MATERIAL_IDS.has(CCI) === false, "CCI is not in the allowlist");
+// The exclusion set is a mechanism, currently empty. It must not carry a
+// tombstone id: 58 was deleted by 0076, and an id resolving to nothing reads as
+// a live rule while doing nothing.
+assert(pr.POLISH_RESISTANT_EXCLUDED_MATERIAL_IDS.size === 0,
+  "the exclusion set is empty — CCI was merged away by 0076, not left as a tombstone");
+assert(pr.POLISH_RESISTANT_EXCLUDED_MATERIAL_IDS.has(58) === false,
+  "the deleted material 58 is NOT kept as a dead id");
 
-// Danville has THREE #10 limestones. All three fail, whichever quarry they came
-// from — and Haydon's #10, the same size designation, passes. A size label alone
-// does not decide this; the source does.
-assert(pr.isPolishResistant(bin(CALDWELL_10, "#10", 20)) === false, "Caldwell #10 does not count");
+// Danville's two #10 limestones both fail, whichever quarry shipped them — and
+// Haydon's #10, the same size designation, passes. A size label alone does not
+// decide this; the source does. This is the contrast the allowlist exists for.
+assert(pr.isPolishResistant(bin(CALDWELL_10, "#10", 20)) === false, "Rogers/Caldwell #10 does not count");
 assert(pr.isPolishResistant(bin(DIX_RIVER_10, "#10", 20)) === false, "Dix River #10 does not count");
-assert(pr.isPolishResistant(bin(CCI, "CCI", 20)) === false, "Caldwell washed #10 (CCI) does not count");
 assert(pr.isPolishResistant(bin(DOL_10W, "Dol. #10's Washed", 20)) === true,
   "Haydon #10 DOES count - identical size, different quarry, different rock");
 
