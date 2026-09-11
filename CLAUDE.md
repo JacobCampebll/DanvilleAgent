@@ -225,11 +225,16 @@ un-run it.
 
 ## Status
 
-Brief §3.5 **steps 1–2 done and merged to `main`** (PR #1, merge `fc4e075`), with step 3 partially
-done on top. The Netlify site `danville` builds `main` and serves the `public/` placeholder; verified
-on the live site that `CLAUDE.md`, the brief, `package.json`, `netlify.toml`, `tests/` and
-`netlify/functions/` all 404 — `publish = "public"` confirmed working rather than assumed. There is
-no deployed function yet, so nothing answers a question: `/` says so in as many words.
+Brief §3.5 **steps 1–4, 6 and 7 are done and merged to `main`** — PR #1 (`fc4e075`) carried steps 1–3,
+PR #2 (`a526428`) carried steps 4 and 6, and step 7 is the frontend described at the end of this
+section. The Netlify site `danville` builds `main`.
+
+**The function is live in production and the site has a working interface.** Verified on the live
+site after the PR #2 merge: `?site_status` answers `{"required":true}`, every data route
+(`?mixes` `?aggregates` `?golden` `?gradations` `?samples` `?history` `?envcheck`) returns **401**
+behind the site gate, and `CLAUDE.md`, the brief, `package.json`, `netlify.toml`, `tests/` and
+`netlify/functions/` all **404** — `publish = "public"` confirmed working rather than assumed, with
+the service-role key behind the only boundary that exists.
 
 Steps 1–2:
 
@@ -356,17 +361,53 @@ reading, so every "10%" would be rewritten into a design name. Rule 7 has to be 
 serializing the ids in the first place**, at `db.mjs`'s boundary, and tested in `tests/db.test.mjs`.
 That work is outstanding and is not something a golden case can cover.
 
-`npm test` runs six suites — **473 assertions, green.**
-
 **The golden suite cannot be run from this repo.** It grades the *deployed* agent: the model keys and
 `SITE_PASSWORD` live in Netlify, not in a checkout. §3.9's "green before it ships to techs" is
 therefore Jake's step, via the in-app Doctrine panel or
 `DBT_SITE_KEY=… node tests/golden/run_golden.mjs`. Grok varies run to run — run twice before treating
 a hard failure as a doctrine break.
 
-Next: step 7, the frontend. **BT3's `index.html` is deliberately NOT ported yet** — it is BT3-branded
-and its contracts and wash-sieve-upload panels point at routes that no longer exist, so swapping it in
-would replace an honest "not in service" placeholder with a UI full of broken buttons.
+Step 7 done — the frontend. **The site now has an interface**; before this, `/` served an honest
+"not in service" placeholder and there was nowhere for a tech to type a question, which is exactly how
+it looked from outside no matter how healthy the function was.
+
+- **`public/index.html` ported from BT3** with the two dead panels removed, not hidden: the contracts
+  browser (`search_contracts` was dropped — its corpus is Boonesborough's jobs) and the wash-sieve PDF
+  upload (the route died with the static-data architecture). The admin modal keeps its passcode gate,
+  the read-only stockpile list and the **Doctrine test runner**.
+- **The "Contract #" boxes on Mix change and Pay factor are gone.** A field that implies the agent can
+  look a job up is how a tech ends up trusting a pay number that never accounted for the job's special
+  provision. The pay hint and the pay prompt now say plainly that an SP could override the standard
+  schedule and that the agent has not seen one. `lf-cid` survives on the plant log, relabelled
+  **"Job # (optional, tag only)"** — there it is a tag, not a lookup.
+- **New "Recent samples" panel** on a new `?samples=1` route, which reads `test_bin_percentages`
+  through `db.getSamples`. It shows the bins a sample **actually ran**, badges any that name a retired
+  stockpile, and hands the agent those bins over the design's components (rule 10a). This is the
+  Danville-shaped half of the port: BT3 has no equivalent because BT3 has no live samples.
+- **Golden-suite case counts are fetched from `?golden=1`, never hardcoded.** BT3's dropdown said
+  "(20)"; Danville has 24. A literal there is a second source of truth that drifts silently.
+- PWA assets ported; **`sw.js` cache is `dbt-shell-v1`**, not BT3's `bt3-shell-v36`. Same team, same
+  shell filenames — a shared cache key is how an installed Danville app serves BT3's UI from cache.
+
+Three defects caught during the port, all of which would have rendered **wrong numbers rather than
+crashing**, which is the worse failure on a plant floor:
+
+1. The stockpile list read BT3's `{tag, tested, source}`; Danville's `?gradations=1` returns
+   `{agg_type, producer, status, age_days, tested_on}`. Copied verbatim it showed blank names and
+   badged every live stockpile `none` — readable as "nothing has been sieved".
+2. The samples panel read `b.pct`; `db.mjs` emits `percent`. Every bin would have shown `?%`.
+3. `gradMsg("grad-up-msg", …)` survived the uploader's deletion and dereferences without a guard, so a
+   **correct** admin passcode threw and looked like it did nothing.
+
+`tests/frontend_contract.test.mjs` — 35 assertions, offline — pins that class of bug: every GET route
+the UI calls exists, the removed routes stay removed, the field names match the server's shapes, all
+8 SSE events have renderers, the cache name is not BT3's, and no `$("id")` points at a deleted
+element.
+
+`npm test` runs seven suites — **508 assertions, green.**
+
+Next: the rule-7 id-scrub gap at `db.mjs`'s serialization boundary, and re-authoring BT3's
+`tests/bailey_calc.test.mjs` against Danville materials.
 
 BT3's `tests/bailey_calc.test.mjs` is still **not** committed: its PRC block is BT3 fixtures and needs
 re-authoring against Danville materials, the same treatment the golden cases just got.
