@@ -1,49 +1,2792 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="robots" content="noindex,nofollow">
-<title>Danville Lab Agent — not yet in service</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Danville Lab Agent — DBT</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#ffffff" id="meta-theme-color">
+<link rel="icon" type="image/png" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default" id="meta-status-bar">
+<meta name="apple-mobile-web-app-title" content="Danville Lab">
+<script>
+  /* Apply theme before paint to avoid flash */
+  (function () {
+    try {
+      var t = localStorage.getItem("bt3-theme");
+      if (t !== "dark" && t !== "light") {
+        t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      }
+      document.documentElement.setAttribute("data-theme", t);
+    } catch (e) {
+      document.documentElement.setAttribute("data-theme", "light");
+    }
+  })();
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.5/purify.min.js"></script>
 <style>
-  :root{
-    color-scheme: light dark;
-    --ground:#ECEEE9; --ink:#161A18; --muted:#5C635D; --rule:#D2D6CD; --accent:#0E5C48;
+  /* Danville Lab Agent — design system (Allen industrial + lab amber) */
+  :root, [data-theme="light"]{
+    --bg:#f6f5f2; --bg-elevated:#ffffff; --panel:#eeede8; --border:#e0ddd4;
+    --text:#1a1c1e; --muted:#6b6f76; --accent:#c9891a;
+    --accent-soft:rgba(201,137,26,.12); --accent-ring:rgba(201,137,26,.35);
+    --user:#ebe8e0; --user-border:#e0ddd4; --agent-rail:var(--accent); --err:#c53d3d;
+    --header-bg:rgba(246,245,242,.88); --header-border:#e5e2d9; --chip-hover:#e5e2d8;
+    --shadow:0 1px 2px rgba(26,28,30,.04),0 8px 24px rgba(26,28,30,.06);
+    --shadow-soft:0 1px 2px rgba(26,28,30,.05); --radius-pill:999px;
+    --composer-bg:#ffffff; --composer-border:#ddd9cf;
+    --btn:#1a1c1e; --btn-text:#ffffff; --btn-hover:#2d3136;
+    --btn-ghost-text:#5c6068; --btn-ghost-border:#d5d1c7;
+    --cite-bg:#eef3f9; --cite-border:#c9d8ea; --cite-text:#1e4f8c;
+    --cite-amber-bg:#fbf4e4; --cite-amber-border:#e8d4a0; --cite-amber-text:#8a5a10;
+    --err-bg:#fdf2f2; --err-border:#f0c4c4; --err-text:#a12d2d;
+    --ok-bg:#eef7f1; --ok-border:#b9dcc6; --ok-text:#1f6b3a;
+    --warn-bg:#fdf6e7; --warn-border:#e6cf9b; --warn-text:#7a5712;
+    --flag-bg:#fbf6e8; --flag-border:#e8d7a4; --flag-text:#8a5e12;
+    --tchip-text:#5c6068; --footer-blur:rgba(246,245,242,.92); --divider:#e0ddd4;
+    --icon-btn-hover:#e8e5dc; --tools-bg:#ffffff; --tools-border:#ddd9cf;
+    --logo-plate:#ffffff; --logo-plate-border:#e5e2d9;
+    --safe-b:env(safe-area-inset-bottom,0px); --safe-t:env(safe-area-inset-top,0px);
+    --col:min(760px,100%); --pad-x:max(16px,calc(50% - 380px)); color-scheme:light;
   }
-  @media (prefers-color-scheme: dark){
-    :root{ --ground:#141715; --ink:#E7EBE5; --muted:#8E968C; --rule:#2E342F; --accent:#57BFA1; }
+  [data-theme="dark"]{
+    --bg:#101218; --bg-elevated:#171b24; --panel:#1c2130; --border:#2c3344;
+    --text:#e9ebf0; --muted:#9aa3b5; --accent:#e0a83a;
+    --accent-soft:rgba(224,168,58,.14); --accent-ring:rgba(224,168,58,.4);
+    --user:#1e2432; --user-border:#2c3344; --agent-rail:var(--accent); --err:#f07171;
+    --header-bg:rgba(16,18,24,.9); --header-border:#232836; --chip-hover:#252b3a;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 28px rgba(0,0,0,.35);
+    --shadow-soft:0 1px 2px rgba(0,0,0,.25);
+    --composer-bg:#171b24; --composer-border:#2c3344;
+    --btn:#e9ebf0; --btn-text:#101218; --btn-hover:#ffffff;
+    --btn-ghost-text:#a8b0c0; --btn-ghost-border:#2c3344;
+    --cite-bg:#172536; --cite-border:#2f4f74; --cite-text:#8fbefa;
+    --cite-amber-bg:#2a2212; --cite-amber-border:#5a4920; --cite-amber-text:#e6c56a;
+    --err-bg:#2a1618; --err-border:#5a2e32; --err-text:#f5a3a3;
+    --ok-bg:#13261c; --ok-border:#2a5540; --ok-text:#7ed9a8;
+    --warn-bg:#2a2412; --warn-border:#5c4c23; --warn-text:#e6c67d;
+    --flag-bg:#2a2212; --flag-border:#5a4920; --flag-text:#e6c56a;
+    --tchip-text:#a0a8ba; --footer-blur:rgba(16,18,24,.94); --divider:#2c3344;
+    --icon-btn-hover:#252b3a; --tools-bg:#1c2130; --tools-border:#2c3344;
+    --logo-plate:#ffffff; --logo-plate-border:#3a4256; color-scheme:dark;
   }
   *{box-sizing:border-box}
-  body{
-    margin:0; min-height:100vh; display:grid; place-items:center; padding:24px;
-    background:var(--ground); color:var(--ink);
-    font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  html{height:100%;-webkit-text-size-adjust:100%}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:15px/1.6 ui-sans-serif,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    display:flex;flex-direction:column;min-height:100dvh;overflow:hidden;
+    transition:background-color .22s ease,color .15s ease;-webkit-font-smoothing:antialiased}
+
+  header{display:flex;align-items:center;gap:14px;padding:12px 20px;padding-top:max(12px,var(--safe-t));
+    background:var(--header-bg);border-bottom:1px solid var(--header-border);
+    backdrop-filter:saturate(1.2) blur(12px);-webkit-backdrop-filter:saturate(1.2) blur(12px);
+    flex:0 0 auto;z-index:20;position:relative}
+  header::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;
+    background:linear-gradient(90deg,var(--accent) 0%,transparent 72%);opacity:.9;pointer-events:none}
+
+  /* centred under the plate: the stamp is narrower than the logo block at every
+     breakpoint, so centring reads as a caption and keeps it off the screen edge */
+  .logo-col{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:5px}
+  .build-tag{font-size:10px;line-height:1;color:var(--muted);opacity:.8;letter-spacing:.045em;
+    font-variant-numeric:tabular-nums;white-space:nowrap;user-select:none}
+  .logo-plate{flex:0 0 auto;display:flex;align-items:center;justify-content:center;height:40px;padding:6px 10px;
+    background:var(--logo-plate);border:1px solid var(--logo-plate-border);border-radius:10px;box-shadow:var(--shadow-soft)}
+  header .logo{height:26px;width:auto;display:block;filter:none !important;opacity:1}
+  header .hdiv{width:1px;height:28px;background:var(--divider);flex:0 0 auto}
+  header .brand{min-width:0;flex:1 1 auto}
+  header h1{font-size:15.5px;margin:0;font-weight:650;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  header h1 .title-short{display:none}
+  header .sub{color:var(--muted);font-size:12px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  .hdr-tools{display:flex;align-items:center;gap:6px;margin-left:auto;flex:0 0 auto}
+  .hdr-tools .provider{background:var(--tools-bg);color:var(--text);border:1px solid var(--tools-border);
+    border-radius:var(--radius-pill);padding:8px 12px 8px 14px;font:600 12.5px/1 inherit;cursor:pointer;outline:none;
+    box-shadow:var(--shadow-soft);transition:background .15s ease,border-color .15s ease}
+  .hdr-tools .provider:focus-visible{box-shadow:0 0 0 3px var(--accent-ring)}
+  .icon-btn{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;padding:0;margin:0;
+    border-radius:var(--radius-pill);border:1px solid var(--tools-border);background:var(--tools-bg);color:var(--text);
+    cursor:pointer;box-shadow:var(--shadow-soft);transition:background .15s ease,border-color .15s ease,transform .1s ease;
+    -webkit-tap-highlight-color:transparent;flex:0 0 auto}
+  .icon-btn:hover{background:var(--icon-btn-hover)}
+  .icon-btn:active{transform:scale(.96)}
+  .icon-btn:focus-visible{outline:none;box-shadow:0 0 0 3px var(--accent-ring)}
+  .icon-btn svg{width:18px;height:18px;display:block}
+  .icon-btn .ico-sun{display:none}
+  .icon-btn .ico-moon{display:block}
+  [data-theme="dark"] .icon-btn .ico-sun{display:block}
+  [data-theme="dark"] .icon-btn .ico-moon{display:none}
+  .icon-btn.danger:hover{background:var(--err-bg);border-color:var(--err-border);color:var(--err)}
+  .icon-btn[disabled]{opacity:.4;cursor:default;pointer-events:none}
+
+  .hdr-clear-wrap{position:relative;flex:0 0 auto}
+  .clear-pop{position:absolute;top:calc(100% + 10px);right:0;z-index:50;width:min(270px,calc(100vw - 24px));
+    background:var(--bg-elevated);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);
+    padding:14px 14px 12px;animation:popIn .14s ease}
+  .clear-pop[hidden]{display:none !important}
+  .clear-pop p{margin:0 0 12px;font-size:13.5px;line-height:1.45;color:var(--text);font-weight:600}
+  .clear-pop p span{color:var(--muted);display:block;font-size:12px;margin-top:4px;font-weight:400}
+  .clear-pop .pop-actions{display:flex;gap:8px;justify-content:flex-end}
+  .clear-pop .pop-actions button{padding:8px 14px;font-size:12.5px;min-height:36px}
+  .btn-ghost{background:transparent !important;color:var(--btn-ghost-text) !important;border:1px solid var(--btn-ghost-border) !important;box-shadow:none !important}
+  .btn-danger{background:var(--err) !important;color:#fff !important;border:none !important}
+  @keyframes popIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+
+  #log{flex:1 1 auto;overflow-y:auto;overflow-x:hidden;padding:28px var(--pad-x) 32px;
+    -webkit-overflow-scrolling:touch;overscroll-behavior:contain;
+    background:radial-gradient(1100px 380px at 50% -100px,var(--accent-soft),transparent 62%),var(--bg)}
+  .turn{margin:0 auto 28px;max-width:var(--col)}
+  .user-msg{background:var(--user);border:1px solid var(--user-border);border-radius:18px 18px 6px 18px;
+    padding:11px 16px;margin-left:auto;width:fit-content;max-width:min(78%,540px);
+    white-space:pre-wrap;word-wrap:break-word;box-shadow:var(--shadow-soft);font-size:14.5px}
+  .agent{background:none;border:none;padding:2px 0}
+  .agent .answer{background:var(--bg-elevated);border:1px solid var(--border);border-radius:14px;
+    padding:14px 16px 14px 18px;box-shadow:var(--shadow-soft);border-left:3px solid var(--agent-rail)}
+  .activity{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 10px}
+  .tchip{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--tchip-text);
+    background:var(--bg-elevated);border:1px solid var(--border);border-radius:20px;padding:4px 11px;max-width:100%;box-shadow:var(--shadow-soft)}
+  .tchip .nm{color:var(--text);font-weight:650}
+  .tchip .in{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:340px}
+  .tchip.fail{border-color:var(--err-border);color:var(--err);background:var(--err-bg)}
+  .tchip.pend .nm::after{content:"…"}
+  details.interim{margin:0 0 10px;border-left:3px solid var(--border);padding-left:10px}
+  details.interim summary{cursor:pointer;color:var(--muted);font-size:12.5px;user-select:none}
+  details.interim .body{color:var(--muted);font-size:13.5px;margin-top:6px}
+  .answer{word-wrap:break-word}
+  .answer p{margin:.5em 0}
+  .answer p:first-child{margin-top:0}
+  .answer p:last-child{margin-bottom:0}
+  .answer strong{font-weight:650}
+  .answer h1,.answer h2,.answer h3{font-size:1.05em;margin:.85em 0 .3em;letter-spacing:-.01em}
+  .answer table{border-collapse:collapse;margin:.65em 0;font-size:13px;display:block;max-width:100%;overflow-x:auto}
+  .answer th,.answer td{border:1px solid var(--border);padding:6px 10px}
+  .answer th{background:var(--panel);font-weight:650;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted)}
+  .answer code{background:var(--panel);border:1px solid var(--border);border-radius:5px;padding:1px 6px;font-size:.9em}
+  .answer pre{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px;overflow-x:auto}
+  .answer pre code{border:none;background:none;padding:0}
+  .answer ul,.answer ol{margin:.4em 0;padding-left:1.35em}
+  .cite{display:inline-block;background:var(--cite-bg);border:1px solid var(--cite-border);color:var(--cite-text);
+    border-radius:6px;padding:1px 7px;font-size:.84em;white-space:nowrap;font-weight:600}
+  .cite.amber{background:var(--cite-amber-bg);border-color:var(--cite-amber-border);color:var(--cite-amber-text)}
+  /* degraded-run banner: the run ANSWERED, so it must not read as a hard failure */
+  .errbox.warn{background:var(--warn-bg);border-color:var(--warn-border);color:var(--warn-text)}
+  .errbox{background:var(--err-bg);border:1px solid var(--err-border);color:var(--err-text);border-radius:10px;
+    padding:11px 14px;margin:8px 0;font-size:13.5px;white-space:pre-wrap}
+  .status{color:var(--muted);font-size:12.5px;margin:6px 0 4px;font-weight:500}
+  .cursor::after{content:"▍";color:var(--accent);animation:blink 1s step-end infinite}
+  @keyframes blink{50%{opacity:0}}
+
+  footer{flex:0 0 auto;padding:12px var(--pad-x) 16px;padding-bottom:max(16px,var(--safe-b));
+    background:var(--footer-blur);border-top:1px solid var(--header-border);z-index:30;
+    backdrop-filter:saturate(1.15) blur(12px);-webkit-backdrop-filter:saturate(1.15) blur(12px)}
+  /* Keep footer controls aligned with chat column on wide screens */
+  .footer-inner{width:100%;max-width:var(--col);margin:0 auto}
+  .composer{display:flex;gap:8px;align-items:flex-end;background:var(--composer-bg);
+    border:1px solid var(--composer-border);border-radius:22px;padding:8px 8px 8px 16px;box-shadow:var(--shadow)}
+  .composer:focus-within{border-color:color-mix(in srgb,var(--accent) 50%,var(--composer-border));
+    box-shadow:var(--shadow),0 0 0 3px var(--accent-soft)}
+  .composer textarea{flex:1;background:none;border:none;outline:none;color:var(--text);resize:none;
+    font:inherit;max-height:180px;padding:7px 8px 7px 0;min-height:24px}
+  .composer textarea::placeholder{color:var(--muted)}
+  button{background:var(--btn);color:var(--btn-text);border:none;border-radius:var(--radius-pill);
+    padding:10px 18px;font:600 14px/1 inherit;cursor:pointer;transition:background .15s ease}
+  button:hover:not(:disabled):not(.icon-btn):not(.pchip):not(.btn-ghost):not(.btn-danger){background:var(--btn-hover)}
+  button:disabled{background:var(--panel);color:var(--muted);cursor:default}
+  button.stop{background:var(--err);color:#fff}
+  #send{min-width:76px}
+  .hint{color:var(--muted);font-size:11.5px;margin-top:7px;text-align:center}
+  .hint .hint-mobile{display:none}
+
+  .presets{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 10px;justify-content:center}
+  .welcome{
+    max-width:var(--col);margin:12vh auto 0;padding:0 8px;text-align:center;
+    color:var(--muted);font-size:14.5px;line-height:1.5;font-weight:500}
+  .welcome strong{display:block;color:var(--text);font-size:15.5px;font-weight:650;
+    letter-spacing:-.01em;margin:0 0 6px}
+  .pchip{background:var(--bg-elevated);color:var(--text);border:1px solid var(--border);border-radius:var(--radius-pill);
+    padding:8px 14px;font:600 12.5px/1 inherit;cursor:pointer;white-space:nowrap;box-shadow:var(--shadow-soft);
+    -webkit-tap-highlight-color:transparent;transition:background .15s ease,color .15s ease,border-color .15s ease}
+  .pchip:hover{background:var(--chip-hover)}
+  .pchip.active{background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 42%,var(--border));color:var(--text)}
+  [data-theme="dark"] .pchip.active{color:var(--accent)}
+  .pchip .pl{display:inline}
+  .pchip .ps{display:none}
+
+  .bc-out{margin:8px 0 4px;max-height:340px;overflow:auto;-webkit-overflow-scrolling:touch}
+  .bc-out .bch{font-size:12px;font-weight:700;margin:10px 0 4px;color:var(--text);letter-spacing:.02em}
+  .bc-out .bcm{color:var(--muted);font-size:12.5px;margin:0 0 6px}
+  .bc-out table{border-collapse:collapse;width:100%;font-size:12.5px}
+  .bc-out th,.bc-out td{text-align:left;padding:4px 8px;border-bottom:1px solid var(--border)}
+  .bc-out th{color:var(--muted);font-size:10.5px;text-transform:uppercase;font-weight:650;letter-spacing:.04em}
+  .bc-out td.num,.bc-out th.num{text-align:right;font-variant-numeric:tabular-nums}
+  .bc-out .flag{display:inline-block;background:var(--flag-bg);border:1px solid var(--flag-border);color:var(--flag-text);
+    border-radius:6px;padding:2px 8px;margin:0 4px 4px 0;font-size:11.5px;font-weight:600}
+  .conf-pill{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;border-radius:999px;
+    padding:3px 10px;letter-spacing:.02em;vertical-align:middle}
+  .conf-high{background:var(--ok-bg);border:1px solid var(--ok-border);color:var(--ok-text)}
+  .conf-medium{background:var(--flag-bg);border:1px solid var(--flag-border);color:var(--flag-text)}
+  .conf-low{background:var(--err-bg);border:1px solid var(--err-border);color:var(--err-text)}
+  .bc-out .okpill{display:inline-block;background:var(--ok-bg);border:1px solid var(--ok-border);color:var(--ok-text);
+    border-radius:6px;padding:2px 8px;margin:0 4px 4px 0;font-size:11.5px;font-weight:600}
+  .verdict{border-radius:12px;padding:12px 14px;margin:0 0 10px;border:1px solid var(--border);font-size:14px;line-height:1.45}
+  .verdict strong{display:block;font-size:13px;letter-spacing:.04em;text-transform:uppercase;margin:0 0 4px}
+  .verdict.good{background:var(--ok-bg);border-color:var(--ok-border);color:var(--ok-text)}
+  .verdict.bad{background:var(--err-bg);border-color:var(--err-border);color:var(--err-text)}
+  .verdict.caution,.verdict.neutral{background:var(--flag-bg);border-color:var(--flag-border);color:var(--flag-text)}
+  .wi-bins{width:100%;border-collapse:collapse;font-size:13px;margin:6px 0 10px}
+  .wi-bins th,.wi-bins td{padding:6px 8px;border-bottom:1px solid var(--border);text-align:left}
+  .wi-bins th{font-size:10.5px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);font-weight:650}
+  .wi-bins td.num,.wi-bins th.num{text-align:right}
+  .wi-bins input{width:72px;border:1px solid var(--border);border-radius:8px;padding:6px 8px;
+    font:600 14px/1 inherit;color:var(--text);background:var(--bg);text-align:right}
+  .wi-bins .des{color:var(--muted);font-variant-numeric:tabular-nums}
+  .wi-sum{font-size:12.5px;color:var(--muted);margin:0 0 8px}
+  .wi-sum.bad{color:var(--err-text);font-weight:650}
+
+  .preset-form{background:var(--bg-elevated);border:1px solid var(--border);border-radius:16px;padding:16px;margin:0 0 10px;box-shadow:var(--shadow)}
+  /* Keep long tools (What if) on-screen: scroll body, sticky action row on all sizes */
+  #wifform.preset-form{
+    max-height:min(72dvh,640px);display:flex;flex-direction:column;overflow:hidden;padding-bottom:10px}
+  #wifform .form-scroll{flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;min-height:0;margin:0 0 8px;padding-right:2px}
+  #wifform .row{flex:0 0 auto;position:sticky;bottom:0;background:var(--bg-elevated);
+    padding-top:8px;border-top:1px solid var(--border);margin:0;z-index:2}
+  #wifform .bc-out{max-height:none}
+  #wifform[hidden]{display:none !important}
+  .preset-form .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:8px}
+  .preset-form .grid.full{grid-template-columns:1fr}
+  .preset-form label{display:block;font-size:11px;color:var(--muted);margin:0 0 4px;font-weight:650;letter-spacing:.02em}
+  .preset-form input,.preset-form textarea,.preset-form select{width:100%;border:1px solid var(--border);border-radius:10px;padding:8px 10px;
+    font:13.5px/1.4 inherit;color:var(--text);background:var(--bg);outline:none;transition:border-color .15s ease,box-shadow .15s ease}
+  .preset-form input:focus,.preset-form textarea:focus,.preset-form select:focus{
+    border-color:color-mix(in srgb,var(--accent) 55%,var(--border));box-shadow:0 0 0 3px var(--accent-soft)}
+  .preset-form textarea{resize:vertical;min-height:44px}
+  .preset-form .sect{margin:8px 0 4px;font-size:11px;color:var(--muted);font-weight:650;display:block;letter-spacing:.03em;text-transform:uppercase}
+  .preset-form .split{display:flex;gap:16px;align-items:flex-start}
+  .preset-form .split-left{flex:1 1 auto;min-width:0}
+  .preset-form .split-right{flex:0 0 175px}
+  .preset-form .svrow{display:grid;grid-template-columns:46px 1fr;gap:6px;align-items:center;margin-bottom:3px}
+  .preset-form .svrow label{margin:0;text-align:right;font-size:11.5px}
+  .preset-form .svrow input{padding:5px 8px;font-size:13px}
+  .preset-form .binhead,.preset-form .binrow{display:grid;grid-template-columns:56px 1fr 1fr;gap:6px}
+  .preset-form .binhead span{font-size:11px;color:var(--muted);font-weight:650;margin-bottom:2px}
+  .preset-form .binrow{margin-bottom:4px}
+  .preset-form .binrow input{padding:5px 8px;font-size:13px}
+  .preset-form .split-left textarea{min-height:60px}
+  .preset-form .row{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+  .preset-form .row button{padding:9px 16px;font-size:13px}
+  .preset-form .row .ghost{background:transparent;color:var(--btn-ghost-text);border:1px solid var(--btn-ghost-border)}
+  .preset-form .form-hint{font-size:12.5px;color:var(--muted);margin:0 2px 12px;line-height:1.45}
+
+  .ctcard{margin:4px 0 6px}
+  .ctcard .cthead{display:flex;flex-direction:column;gap:3px;margin-bottom:8px}
+  .ctcard .ctrow{font-size:13px}
+  .ctcard .ctrow span.k{display:inline-block;min-width:96px;color:var(--muted);font-size:11px;font-weight:650;text-transform:uppercase;letter-spacing:.03em}
+  .ctcard .opt{display:inline-block;background:var(--ok-bg);border:1px solid var(--ok-border);color:var(--ok-text);border-radius:6px;padding:1px 7px;font-size:12px;font-weight:700}
+  .ctcard .ctnotes{margin:6px 0 4px}
+  .ctcard .ctnotes .chip{display:inline-block;background:var(--panel);border:1px solid var(--border);border-radius:999px;padding:2px 9px;margin:0 4px 4px 0;font-size:11.5px;color:var(--text)}
+  .ctcard .ctsec{font-size:11px;color:var(--muted);font-weight:700;margin:8px 0 3px;text-transform:uppercase;letter-spacing:.03em}
+  .ctcard .bidwrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .ctcard table{border-collapse:collapse;width:100%;font-size:12.5px}
+  .ctcard th,.ctcard td{text-align:left;padding:4px 8px;border-bottom:1px solid var(--border);white-space:nowrap}
+  .ctcard th{color:var(--muted);font-size:10.5px;text-transform:uppercase;font-weight:650}
+  .ctcard td.num,.ctcard th.num{text-align:right}
+  .ctcard td.desc{white-space:normal;min-width:180px}
+  .ctempty{color:var(--muted);font-size:13px;padding:10px 2px}
+
+  @media (min-width:1100px){
+    :root,[data-theme="light"],[data-theme="dark"]{ --col:min(820px,100%); --pad-x:max(24px,calc(50% - 410px)); }
+    header{padding-left:max(24px,calc(50% - 410px));padding-right:max(24px,calc(50% - 410px))}
+    #log{padding-top:32px;padding-bottom:40px}
+    .preset-form .grid{grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}
+    .preset-form .split-right{flex:0 0 200px}
   }
-  main{max-width:34rem}
-  .eyebrow{
-    font-size:11px; font-weight:700; letter-spacing:.16em; text-transform:uppercase;
-    color:var(--accent); margin:0 0 10px;
+  @media (max-width:900px){
+    :root,[data-theme="light"],[data-theme="dark"]{ --pad-x:16px; }
+    header{padding-left:14px;padding-right:14px}
   }
-  h1{font-size:clamp(24px,5vw,32px); line-height:1.15; margin:0 0 14px; letter-spacing:-.02em}
-  p{margin:0 0 12px; color:var(--ink)}
-  p.note{color:var(--muted); font-size:14px}
-  hr{border:0; border-top:1px solid var(--rule); margin:22px 0}
-  code{
-    font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.9em;
-    background:color-mix(in srgb, var(--ink) 8%, transparent); padding:1px 5px; border-radius:3px;
+  @media (max-width:720px){
+    :root,[data-theme="light"],[data-theme="dark"]{ --pad-x:12px; --col:100%; }
+    header{gap:10px;padding:10px 12px;padding-top:max(10px,var(--safe-t))}
+    .logo-col{gap:4px}
+    .build-tag{font-size:9.5px;letter-spacing:.04em}
+    .logo-plate{height:34px;padding:4px 7px;border-radius:8px}
+    header .logo{height:20px}
+    header .hdiv{display:none}
+    header h1{font-size:13.5px;letter-spacing:-.02em}
+    header h1 .title-full{display:none}
+    header h1 .title-short{display:inline}
+    header .sub{display:none}
+    .hdr-tools{gap:4px}
+    .hdr-tools .provider{padding:7px 8px;font-size:11.5px;max-width:78px}
+    .icon-btn{width:34px;height:34px}
+    .icon-btn svg{width:16px;height:16px}
+    #log{padding:14px 12px 18px}
+    .turn{margin:0 0 18px}
+    .user-msg{max-width:90%;font-size:14.5px}
+    .agent .answer{padding:12px 13px 12px 14px;border-radius:12px}
+    .tchip{font-size:11.5px}
+    .tchip .in{max-width:min(200px,50vw)}
+    .answer table{font-size:12.5px}
+    .cite{white-space:normal}
+    footer{padding:8px 10px max(10px,var(--safe-b))}
+    .presets{display:flex;flex-wrap:nowrap;justify-content:center;justify-content:safe center;
+      gap:6px;margin:0 0 8px;overflow-x:auto;-webkit-overflow-scrolling:touch;
+      scroll-snap-type:x proximity;padding:2px 0 6px;scrollbar-width:none}
+    .presets::-webkit-scrollbar{display:none}
+    .pchip{flex:0 0 auto;scroll-snap-align:center;padding:10px 12px;min-height:40px;font-size:12.5px}
+    .pchip .pl{display:none}
+    .pchip .ps{display:inline}
+    .preset-form{border-radius:14px;padding:12px;margin:0 0 8px;max-height:min(68dvh,560px);
+      display:flex;flex-direction:column;overflow:hidden}
+    .preset-form[hidden]{display:none !important}
+    .preset-form .form-scroll{flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;min-height:0;margin:0 0 8px}
+    #wifform.preset-form{max-height:min(75dvh,620px)}
+    .preset-form .grid{grid-template-columns:1fr 1fr;gap:8px}
+    .preset-form .grid.full{grid-template-columns:1fr}
+    .preset-form input,.preset-form textarea,.preset-form select{font-size:16px;padding:10px;min-height:42px}
+    .preset-form .split{flex-direction:column;gap:10px}
+    .preset-form .split-right{flex:1 1 auto;width:100%;display:grid;grid-template-columns:1fr 1fr;gap:4px 10px}
+    .preset-form .split-right > .sect{grid-column:1 / -1}
+    .preset-form .svrow{grid-template-columns:40px 1fr;margin-bottom:0}
+    .preset-form .svrow input{min-height:38px;padding:6px 8px;font-size:16px}
+    .preset-form .binhead,.preset-form .binrow{grid-template-columns:48px 1fr 1fr;gap:4px}
+    .preset-form .binrow input{min-height:38px;font-size:15px;padding:6px}
+    .preset-form .row{flex:0 0 auto;justify-content:stretch;gap:8px;padding-top:6px;border-top:1px solid var(--border)}
+    .preset-form .row button{flex:1 1 auto;min-height:44px;padding:12px 14px;font-size:14px}
+    .bc-out{max-height:200px}
+    .composer{border-radius:20px;padding:6px 6px 6px 14px}
+    .composer textarea{font-size:16px;max-height:120px;padding:8px 4px}
+    .composer #send{min-height:42px;min-width:72px;padding:10px 14px}
+    .hint .hint-desktop{display:none}
+    .hint .hint-mobile{display:inline}
+    .hint{font-size:11px;margin-top:5px}
   }
+  @media (max-width:380px){
+    header h1{font-size:12.5px}
+    .logo-col{gap:3px}
+    .build-tag{font-size:9px}
+    .logo-plate{height:32px;padding:4px 6px}
+    header .logo{height:18px}
+    .hdr-tools .provider{max-width:72px;padding:6px 7px;font-size:11px}
+    .icon-btn{width:32px;height:32px}
+    .pchip{padding:9px 10px;font-size:11.5px}
+    .preset-form .grid{grid-template-columns:1fr}
+    .preset-form .split-right{grid-template-columns:1fr}
+  }
+  @media (hover:hover) and (pointer:fine){
+    .pchip:hover{background:var(--chip-hover)}
+  }
+  /* Deterministic result cards (computed — never model-retyped) */
+  .rcard{border:1px solid var(--border);border-radius:12px;background:var(--bg-elevated);
+    padding:11px 12px;margin:8px 0;box-shadow:var(--shadow-soft)}
+  .rcard .rhead{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:8px}
+  .rcard .rtitle{font-size:12px;font-weight:700;color:var(--text);letter-spacing:.01em}
+  .rcard .rsub{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-weight:650}
+  .rcard table{width:100%;border-collapse:collapse;font-size:12.5px}
+  .rcard th,.rcard td{padding:4px 6px;border-bottom:1px solid var(--divider);text-align:left}
+  .rcard th{font-size:10px;text-transform:uppercase;color:var(--muted);font-weight:650;letter-spacing:.03em}
+  .rcard td.num,.rcard th.num{text-align:right;font-variant-numeric:tabular-nums}
+  .rcard tr:last-child td{border-bottom:none}
+  .pay{border-radius:5px;padding:1px 6px;font-size:11.5px;font-weight:700;font-variant-numeric:tabular-nums}
+  .pay-good{background:var(--ok-bg);border:1px solid var(--ok-border);color:var(--ok-text)}
+  .pay-ok{background:var(--panel);border:1px solid var(--border);color:var(--text)}
+  .pay-low{background:var(--flag-bg);border:1px solid var(--flag-border);color:var(--flag-text)}
+  .pay-bad{background:var(--err-bg);border:1px solid var(--err-border);color:var(--err-text)}
+  .rcard .rfoot{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:9px;padding-top:8px;
+    border-top:1px solid var(--divider);font-size:12.5px}
+  .rcard .big{font-size:17px;font-weight:750;font-variant-numeric:tabular-nums;color:var(--text)}
+  .rcard .rnote{font-size:11.5px;color:var(--muted);margin-top:6px;line-height:1.45}
+  /* ratio bars */
+  .rbar{display:grid;grid-template-columns:42px 1fr 60px;gap:8px;align-items:center;margin:5px 0;font-size:12px}
+  .rbar .rlab{color:var(--muted);font-weight:650}
+  .rbar .track{position:relative;height:16px;border-radius:8px;background:var(--panel);overflow:hidden}
+  .rbar .band{position:absolute;top:0;bottom:0;background:var(--ok-bg);border-left:1px solid var(--ok-border);border-right:1px solid var(--ok-border)}
+  .rbar .mk{position:absolute;top:1px;bottom:1px;width:3px;border-radius:2px;background:var(--accent)}
+  .rbar .mk.prev{background:var(--muted);opacity:.55;width:2px}
+  .rbar .rval{text-align:right;font-variant-numeric:tabular-nums;color:var(--text);font-weight:650}
+  .rbar .rval .was{color:var(--muted);font-weight:400;font-size:11px}
+  /* 0.45 power chart */
+  .chart45{width:100%;max-width:430px;height:auto;display:block;margin:6px auto 0;overflow:visible}
+  .chart45 .grid{stroke:var(--divider);stroke-width:1}
+  .chart45 .mdl{stroke:var(--muted);stroke-width:1.25;stroke-dasharray:4 3;fill:none;opacity:.75}
+  .chart45 .ctl{stroke:var(--accent);stroke-width:1;stroke-dasharray:2 3;opacity:.5}
+  .chart45 .ln-a{stroke:var(--muted);stroke-width:2;fill:none}
+  .chart45 .ln-b{stroke:var(--accent);stroke-width:2.5;fill:none}
+  .chart45 .dot-b{fill:var(--accent)}
+  .chart45 text{fill:var(--muted);font-size:9px}
+  .chart45 .axl{fill:var(--muted);font-size:9.5px;font-weight:650}
+  .rlegend{display:flex;gap:12px;font-size:11px;color:var(--muted);margin-top:4px;flex-wrap:wrap}
+  .rlegend i{display:inline-block;width:14px;height:0;border-top-width:2.5px;border-top-style:solid;vertical-align:middle;margin-right:4px}
+  /* starter + follow-up chips */
+  .qchip{background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:999px;
+    padding:7px 13px;font-size:12.5px;cursor:pointer;font-family:inherit;line-height:1.3;text-align:left}
+  .qchip:hover{background:var(--chip-hover)}
+  .qchip:active{transform:scale(.98)}
+  .followups{display:flex;flex-wrap:wrap;gap:7px;margin:6px 0 2px}
+  .followups .qchip{font-size:12px;padding:6px 11px}
+  .fu-label{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-weight:650;margin:10px 0 2px}
+  /* mic */
+  .mic.rec{background:var(--err-bg);border-color:var(--err-border);color:var(--err-text)}
+  .mic.rec svg{animation:micpulse 1.2s ease-in-out infinite}
+  @keyframes micpulse{0%,100%{opacity:1}50%{opacity:.45}}
+
+  /* Gradations admin modal */
+  #grad-modal{position:fixed;inset:0;z-index:50;display:none;align-items:flex-start;justify-content:center;
+    background:rgba(0,0,0,.45);padding:max(24px,var(--safe-t)) 12px 24px;overflow-y:auto}
+  #grad-modal.open{display:flex}
+  .grad-card{background:var(--bg-elevated);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);
+    width:100%;max-width:560px;margin-top:24px;padding:18px}
+  .grad-card h2{font-size:16px;margin:0 0 2px;color:var(--text)}
+  .grad-card .gsub{font-size:12.5px;color:var(--muted);margin-bottom:14px}
+  .grad-card label{display:block;font-size:11px;color:var(--muted);font-weight:600;margin:0 0 4px}
+  .grad-card input[type=password],.grad-card input[type=text]{width:100%;border:1px solid var(--border);border-radius:10px;
+    padding:10px 12px;font-size:15px;background:var(--bg);color:var(--text)}
+  .grad-list{margin-top:14px}
+.sm-row{border-radius:10px;transition:background .12s}
+  .sm-row:hover{background:var(--chip-hover)}
+  .sm-row.active{background:var(--chip-hover);outline:2px solid var(--accent);outline-offset:-2px}
+  .grad-row{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:7px 2px;border-bottom:1px solid var(--divider);font-size:13px}
+  .grad-row .gtag{font-weight:600;color:var(--text)}
+  .grad-row .gdate{color:var(--muted);font-size:12px}
+  .gbadge{border-radius:6px;padding:1px 8px;font-size:11px;font-weight:600;white-space:nowrap}
+  .gb-fresh{background:var(--ok-bg);border:1px solid var(--ok-border);color:var(--ok-text)}
+  .gb-aging{background:var(--flag-bg);border:1px solid var(--flag-border);color:var(--flag-text)}
+  .gb-stale{background:var(--err-bg);border:1px solid var(--err-border);color:var(--err-text)}
+  .gb-none{border:1px solid var(--border);color:var(--muted)}
+  .grad-row-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+  .grad-msg{font-size:12.5px;margin-top:10px;padding:8px 10px;border-radius:8px;display:none}
+  .grad-msg.ok{display:block;background:var(--ok-bg);border:1px solid var(--ok-border);color:var(--ok-text)}
+  .grad-msg.err{display:block;background:var(--err-bg);border:1px solid var(--err-border);color:var(--err-text)}
+  /* Plant site password gate */
+  .site-gate{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;
+    padding:24px;background:var(--bg);background:color-mix(in srgb,var(--bg) 92%,#000)}
+  .site-gate[hidden]{display:none !important}
+  .site-gate-card{width:min(400px,100%);background:var(--bg-elevated);border:1px solid var(--border);
+    border-radius:18px;padding:28px 24px 22px;box-shadow:var(--shadow)}
+  .site-gate-card h2{margin:0 0 6px;font-size:18px;font-weight:700;color:var(--text)}
+  .site-gate-card p{margin:0 0 16px;font-size:13.5px;color:var(--muted);line-height:1.45}
+  .site-gate-card label{display:block;font-size:11px;font-weight:650;color:var(--muted);margin:0 0 6px;letter-spacing:.02em}
+  .site-gate-card input{width:100%;border:1px solid var(--border);border-radius:10px;padding:12px 12px;
+    font-size:16px;background:var(--bg);color:var(--text);margin:0 0 12px}
+  .site-gate-card input:focus{outline:none;border-color:color-mix(in srgb,var(--accent) 50%,var(--border))}
+  .site-gate-card button{width:100%;padding:12px 16px;font-size:14px;font-weight:650;border-radius:10px;
+    border:none;background:var(--accent);color:#fff;cursor:pointer}
+  .site-gate-card button:disabled{opacity:.55;cursor:wait}
+  .site-gate-err{display:none;margin:0 0 12px;padding:8px 10px;border-radius:8px;font-size:13px;
+    background:var(--err-bg);border:1px solid var(--err-border);color:var(--err)}
+  .site-gate-err.show{display:block}
 </style>
 </head>
 <body>
-<main>
-  <p class="eyebrow">The Allen Company &middot; Danville Asphalt Plant (DBT)</p>
-  <h1>The Danville lab agent is not in service yet.</h1>
-  <p>This site is deployed but has no agent behind it. Nothing here can answer a question about
-     a mix, and no number shown on this page should be used on the plant floor.</p>
-  <hr>
-  <p class="note">Placeholder page. It exists so the Netlify build has a publish directory to
-     serve &mdash; <code>publish = "public"</code> means only this folder is public, which is the
-     point. The real interface lands at step 7 of the build order.</p>
-</main>
+<div id="site-gate" class="site-gate" hidden>
+  <div class="site-gate-card" role="dialog" aria-modal="true" aria-labelledby="site-gate-title">
+    <h2 id="site-gate-title">Plant access</h2>
+    <p>Enter the Danville Lab site password. Techs share this — it is not your personal login.</p>
+    <div id="site-gate-err" class="site-gate-err" role="alert"></div>
+    <label for="site-pass">Site password</label>
+    <input type="password" id="site-pass" autocomplete="current-password" placeholder="Password">
+    <button type="button" id="site-unlock">Unlock</button>
+  </div>
+</div>
+<header>
+  <div class="logo-col">
+    <div class="logo-plate" title="The Allen Company">
+      <img class="logo" src="/allen-logo.png" alt="The Allen Company">
+    </div>
+    <!-- bump this on each deploy techs should be able to name -->
+    <span class="build-tag">Build 0.1.31</span>
+  </div>
+  <div class="hdiv"></div>
+  <div class="brand">
+    <h1><span class="title-full">Danville Lab Agent</span><span class="title-short">Danville Lab</span></h1>
+    <div class="sub">DBT lab · mix design · specs · samples · plant memory</div>
+  </div>
+  <div class="hdr-tools">
+    <button type="button" class="icon-btn" id="grad-admin-btn" title="Stockpile gradations (admin)" aria-label="Gradations admin">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+    </button>
+    <select id="provider" class="provider" title="Which AI model answers your questions" aria-label="AI model">
+      <option value="claude">Claude</option>
+      <option value="grok">Grok 4.3</option>
+      <option value="grok45">Grok 4.5</option>
+    </select>
+    <button type="button" class="icon-btn" id="theme-toggle" title="Toggle light / dark theme" aria-label="Toggle theme">
+      <!-- moon: switch to dark -->
+      <svg class="ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a7 7 0 0 0 11.5 11.5z"/>
+      </svg>
+      <!-- sun: switch to light -->
+      <svg class="ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="4"/>
+        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+      </svg>
+    </button>
+    <div class="hdr-clear-wrap">
+      <button type="button" class="icon-btn danger" id="clear-chat" title="Clear conversation" aria-label="Clear conversation" aria-haspopup="dialog" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>
+          <path d="M10 11v6M14 11v6"/>
+        </svg>
+      </button>
+      <div class="clear-pop" id="clear-pop" role="dialog" aria-label="Clear conversation" hidden>
+        <p>Clear this chat?<span>Removes messages from this screen. Plant log is not affected.</span></p>
+        <div class="pop-actions">
+          <button type="button" class="btn-ghost" id="clear-cancel">Cancel</button>
+          <button type="button" class="btn-danger" id="clear-confirm">Clear</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div id="log"></div>
+
+<footer>
+  <div class="footer-inner">
+  <div class="presets" role="toolbar" aria-label="Quick tools">
+    <button type="button" class="pchip" data-form="mixform"><span class="pl">Mix change</span><span class="ps">Mix</span></button>
+    <button type="button" class="pchip" data-form="wifform"><span class="pl">What if</span><span class="ps">What if</span></button>
+    <button type="button" class="pchip" data-form="jdform"><span class="pl">JMF comparison</span><span class="ps">JMF</span></button>
+    <button type="button" class="pchip" data-form="phform"><span class="pl">Plant history</span><span class="ps">History</span></button>
+    <button type="button" class="pchip" data-form="smform"><span class="pl">Recent samples</span><span class="ps">Samples</span></button>
+    <button type="button" class="pchip" data-form="pfform"><span class="pl">Pay factor</span><span class="ps">Pay</span></button>
+    <button type="button" class="pchip" data-form="logform"><span class="pl">Log it</span><span class="ps">Log</span></button>
+  </div>
+
+  <div id="mixform" class="preset-form" hidden>
+    <div class="form-scroll">
+    <div class="grid">
+      <div><label>Mix design</label>
+        <select id="mf-mix" class="mix-select"><option value="">Loading mixes…</option></select>
+        <input id="mf-mix-other" placeholder="Type the mix name" style="display:none;margin-top:6px">
+      </div>
+      <div><label>Tons into production</label><input id="mf-tons" inputmode="decimal"></div>
+      <div><label>Sample basis</label><select id="mf-basis"><option value="">—</option><option>Single sample</option><option>Trend (multiple samples)</option></select></div>
+      <div><label>Air voids (Va %)</label><input id="mf-va" inputmode="decimal"></div>
+      <div><label>VMA %</label><input id="mf-vma" inputmode="decimal"></div>
+      <div><label>Gmm (MSG)</label><input id="mf-gmm" inputmode="decimal"></div>
+      <div><label>Gmb (BSG)</label><input id="mf-gmb" inputmode="decimal"></div>
+      <div><label>AC % (burn-off)</label><input id="mf-ac" inputmode="decimal"></div>
+    </div>
+    <div class="split">
+      <div class="split-left">
+        <label class="sect">Current bin splits</label>
+        <div class="binhead"><span>%</span><span>Aggregate type</span><span>Location / source</span></div>
+        <div class="binrow"><input class="bin-pct" inputmode="decimal"><input class="bin-type"><input class="bin-loc"></div>
+        <div class="binrow"><input class="bin-pct" inputmode="decimal"><input class="bin-type"><input class="bin-loc"></div>
+        <div class="binrow"><input class="bin-pct" inputmode="decimal"><input class="bin-type"><input class="bin-loc"></div>
+        <div class="binrow"><input class="bin-pct" inputmode="decimal"><input class="bin-type"><input class="bin-loc"></div>
+        <div class="binrow"><input class="bin-pct" inputmode="decimal"><input class="bin-type"><input class="bin-loc"></div>
+        <div class="binrow"><input class="bin-pct" inputmode="decimal"><input class="bin-type"><input class="bin-loc"></div>
+        <label class="sect">What's happening / drifting?</label>
+        <textarea id="mf-issue" placeholder="Voids came in low on the first test of the day..."></textarea>
+        <div id="mf-diag" class="bc-out" hidden style="margin-top:10px"></div>
+        <div id="mf-moves" class="bc-out" hidden style="margin-top:8px"></div>
+      </div>
+      <div class="split-right">
+        <label class="sect">Burn-off gradation (% passing)</label>
+        <div class="svrow"><label>2"</label><input class="sv" data-sieve='2"' inputmode="decimal"></div>
+        <div class="svrow"><label>1 1/2"</label><input class="sv" data-sieve='1 1/2"' inputmode="decimal"></div>
+        <div class="svrow"><label>1"</label><input class="sv" data-sieve='1"' inputmode="decimal"></div>
+        <div class="svrow"><label>3/4"</label><input class="sv" data-sieve='3/4"' inputmode="decimal"></div>
+        <div class="svrow"><label>1/2"</label><input class="sv" data-sieve='1/2"' inputmode="decimal"></div>
+        <div class="svrow"><label>3/8"</label><input class="sv" data-sieve='3/8"' inputmode="decimal"></div>
+        <div class="svrow"><label>#4</label><input class="sv" data-sieve="#4" inputmode="decimal"></div>
+        <div class="svrow"><label>#8</label><input class="sv" data-sieve="#8" inputmode="decimal"></div>
+        <div class="svrow"><label>#16</label><input class="sv" data-sieve="#16" inputmode="decimal"></div>
+        <div class="svrow"><label>#30</label><input class="sv" data-sieve="#30" inputmode="decimal"></div>
+        <div class="svrow"><label>#50</label><input class="sv" data-sieve="#50" inputmode="decimal"></div>
+        <div class="svrow"><label>#100</label><input class="sv" data-sieve="#100" inputmode="decimal"></div>
+        <div class="svrow"><label>#200</label><input class="sv" data-sieve="#200" inputmode="decimal"></div>
+      </div>
+    </div>
+    </div>
+    <div class="row">
+      <button type="button" class="ghost" data-close="mixform">Cancel</button>
+      <button type="button" class="ghost" id="mf-suggest">Suggest moves</button>
+      <button type="button" id="mf-go">Add to message</button>
+    </div>
+  </div>
+
+  <div id="logform" class="preset-form" hidden>
+    <div class="form-scroll">
+    <p class="form-hint">Log a result, or close the loop: predicted Va from Suggest moves / JMF → actual lab Va (builds calibration).</p>
+    <div class="grid full">
+      <div><label>What happened? (result, decision, change)</label><textarea id="lf-entry" placeholder="Resample on 251026 came back 3.4 Va — original sample wasn't representative. No blend change."></textarea></div>
+    </div>
+    <div class="grid">
+      <div><label>Mix design (optional)</label><input id="lf-mix" placeholder="CL3 0.38A Coarse Haydon"></div>
+      <div><label>Job # (optional, tag only)</label><input id="lf-cid" placeholder="251026" inputmode="numeric"></div>
+      <div><label>Predicted Va % (optional)</label><input id="lf-pred-va" inputmode="decimal" placeholder="from app"></div>
+      <div><label>Actual Va % (optional)</label><input id="lf-act-va" inputmode="decimal" placeholder="lab"></div>
+    </div>
+    <div id="lf-calib" class="bcm" hidden style="margin:6px 2px 0"></div>
+    </div>
+    <div class="row">
+      <button type="button" class="ghost" data-close="logform">Cancel</button>
+      <button type="button" class="ghost" id="lf-save">Save to plant log</button>
+      <button type="button" id="lf-go">Add to message</button>
+    </div>
+  </div>
+
+  <div id="smform" class="preset-form" hidden>
+    <div class="form-scroll">
+    <div class="grid full">
+      <div><label>Mix design (optional &mdash; blank shows every mix)</label>
+        <select id="sm-mix" class="mix-select"><option value="">All mixes</option></select>
+      </div>
+    </div>
+    <p class="form-hint">The last dozen volumetric tests and the bins each one actually ran. These are the <strong>running bins</strong> from the plant, not the design recipe &mdash; at Danville those are different vocabularies, and a design calls for a <code>#9</code> the plant does not stock.</p>
+    <div id="sm-feed"><div class="ctempty">Loading recent samples&hellip;</div></div>
+    </div>
+    <div class="row">
+      <button type="button" class="ghost" data-close="smform">Cancel</button>
+      <button type="button" id="sm-go" disabled>Ask the agent about a sample</button>
+    </div>
+  </div>
+
+  <div id="phform" class="preset-form" hidden>
+    <div class="form-scroll">
+    <div class="grid full">
+      <div><label>Mix design</label>
+        <select id="ph-mix" class="mix-select"><option value="">Loading mixes…</option></select>
+      </div>
+    </div>
+    <div id="ph-feed"><div class="ctempty">Pick a mix to see what's been logged about it — results, changes, decisions.</div></div>
+    <div class="grid full" style="margin-top:8px">
+      <div><label>Ask about this mix's history (optional)</label><input id="ph-q" placeholder="e.g. What did we change the last time voids ran low?"></div>
+    </div>
+    </div>
+    <div class="row">
+      <button type="button" class="ghost" data-close="phform">Cancel</button>
+      <button type="button" id="ph-go" disabled>Ask the agent</button>
+    </div>
+  </div>
+
+  <div id="wifform" class="preset-form" hidden>
+    <div class="form-scroll">
+      <p class="form-hint">Set proposed bin %, or hit <b>Suggest moves</b> for verified options toward target Va. Predict scores one split (Bailey + plant rules + rough Va).</p>
+      <div class="grid">
+        <div><label>Mix design</label>
+          <select id="wi-mix" class="mix-select"><option value="">Loading mixes…</option></select>
+        </div>
+        <div><label>Current / sample Va % (optional)</label><input id="wi-va" inputmode="decimal" placeholder="e.g. 2.1"></div>
+        <div><label>Proposed AC change (pts, optional)</label><input id="wi-ac-delta" inputmode="decimal" placeholder="e.g. -0.1"></div>
+      </div>
+      <div id="wi-bins-wrap"><div class="ctempty">Pick a mix to load design bin percentages.</div></div>
+      <div id="wi-sum" class="wi-sum" hidden></div>
+      <div id="wi-moves" class="bc-out" hidden></div>
+      <div id="wi-out" class="bc-out" hidden></div>
+    </div>
+    <div class="row">
+      <button type="button" class="ghost" data-close="wifform">Cancel</button>
+      <button type="button" class="ghost" id="wi-reset" disabled>Reset to design</button>
+      <button type="button" class="ghost" id="wi-suggest" disabled>Suggest moves</button>
+      <button type="button" class="ghost" id="wi-ask" disabled>Ask the agent</button>
+      <button type="button" id="wi-run" disabled>Predict</button>
+    </div>
+  </div>
+
+  <div id="jdform" class="preset-form" hidden>
+    <div class="form-scroll">
+      <p class="form-hint">Check design bins on <b>today's</b> stockpile sieves vs the approved JMF (design Va usually <b>3.5%</b>). If already in band near design Va → <b>hold design bins</b>. Recovery only when piles are actually off the curve.</p>
+      <div class="grid">
+        <div><label>Mix design</label>
+          <select id="jd-mix" class="mix-select"><option value="">Loading mixes…</option></select>
+        </div>
+      </div>
+      <div id="jd-out" class="bc-out" hidden></div>
+    </div>
+    <div class="row">
+      <button type="button" class="ghost" data-close="jdform">Cancel</button>
+      <button type="button" class="ghost" id="jd-ask" disabled>Ask the agent</button>
+      <button type="button" id="jd-run" disabled>Compare</button>
+    </div>
+  </div>
+
+  <div id="pfform" class="preset-form" hidden>
+    <div class="form-scroll">
+    <div class="grid">
+      <div><label>Mix design</label>
+        <select id="pf-mix" class="mix-select"><option value="">Loading mixes…</option></select>
+        <input id="pf-mix-other" placeholder="Type the mix type" style="display:none;margin-top:6px">
+      </div>
+      <div><label>Lot tonnage (optional)</label><input id="pf-tons" inputmode="decimal"></div>
+      <div><label>Traffic class (AADTT)</label><select id="pf-class"><option value="">—</option><option>Class 2</option><option>Class 3 or 4</option></select></div>
+      <div><label>AC content (%)</label><input id="pf-ac" inputmode="decimal"></div>
+      <div><label>Air voids by sublot (Va %) — comma-separated</label><input id="pf-va" placeholder="3.6, 4.1, 3.9, 4.4"></div>
+      <div><label>VMA %</label><input id="pf-vma" inputmode="decimal"></div>
+      <div><label>Lane / mat density (% — cores)</label><input id="pf-lanedens" inputmode="decimal"></div>
+      <div><label>Joint density (% — cores, surface)</label><input id="pf-jointdens" inputmode="decimal"></div>
+    </div>
+    <p class="form-hint">Pick the mix and enter the lot's results — including core densities (lane &amp; joint). The agent runs the KYTC Lot Pay Adjustment Schedule (Compaction Option A): AC, air voids, VMA, lane density, joint density → composite pay factor (and $ if you give tonnage). It cannot see contract special provisions, so an SP on your job can override this. Advisory — verify against controlling documents.</p>
+    </div>
+    <div class="row">
+      <button type="button" class="ghost" data-close="pfform">Cancel</button>
+      <button type="button" id="pf-go">Add to message</button>
+    </div>
+  </div>
+
+  <div class="composer">
+    <textarea id="input" rows="2" placeholder="Ask about a mix, a spec, a stockpile, a test result…"></textarea>
+    <button type="button" class="icon-btn mic" id="mic" title="Dictate (hands-free)" aria-label="Dictate" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+    </button>
+    <button id="send">Send</button>
+  </div>
+  <div class="hint">
+    <span class="hint-desktop">Enter to send · Shift+Enter for a new line · Recommendations are advisory — verify against controlling documents.</span>
+    <span class="hint-mobile">Tap Send · Advisory only — verify specs &amp; docs</span>
+  </div>
+  </div>
+</footer>
+
+<div id="grad-modal">
+  <div class="grad-card">
+    <!-- passcode gate -->
+    <div id="grad-gate">
+      <h2>🔒 Stockpile gradations</h2>
+      <div class="gsub">Admin only — enter your passcode to update stockpile gradations.</div>
+      <label for="grad-pass">Passcode</label>
+      <input type="password" id="grad-pass" autocomplete="off" placeholder="Passcode">
+      <div class="grad-msg" id="grad-gate-msg"></div>
+      <div class="grad-row-actions">
+        <button type="button" class="ghost" data-grad-close>Cancel</button>
+        <button type="button" id="grad-unlock">Unlock</button>
+      </div>
+    </div>
+    <!-- editor -->
+    <div id="grad-editor" hidden>
+      <h2>Stockpile gradations</h2>
+      <div class="gsub">Read-only. Freshness is <strong>now() &minus; test_date</strong> straight off the live gradation tests &mdash; there is nothing to upload here. Sieves are entered in the QC data-entry app and show up automatically.</div>
+      <div class="grad-list" id="grad-list"></div>
+
+      <div style="border-top:1px solid var(--divider);margin-top:14px;padding-top:12px">
+        <h2 style="font-size:15px;margin:0 0 2px">Doctrine tests</h2>
+        <div class="gsub" style="margin-bottom:10px">Runs the golden cases against the live agent using the model picked in the header. <strong>Mix questions</strong> checks the core job — right design, right lever direction, legal bin moves, predicted result quoted. Roughly 10 seconds per case.</div>
+        <div class="grad-row-actions" style="margin:0 0 8px;align-items:center">
+          <select id="gold-suite" style="flex:0 0 auto;width:auto;border:1px solid var(--border);border-radius:10px;padding:8px 10px;font-size:13px;background:var(--bg);color:var(--text)">
+            <option value="mix">Mix questions</option>
+            <option value="all">All cases</option>
+            <option value="core">Core doctrine</option>
+          </select>
+          <button type="button" class="ghost" id="gold-stop" hidden>Stop</button>
+          <button type="button" id="gold-run">Run tests</button>
+        </div>
+        <div class="grad-msg" id="gold-msg"></div>
+        <div id="gold-out"></div>
+      </div>
+
+      <div class="grad-row-actions">
+        <button type="button" class="ghost" data-grad-close>Done</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  // PWA: register the service worker so the app is installable / works offline shell
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("/sw.js").catch(function () {});
+    });
+  }
+  var ENDPOINT = "/.netlify/functions/agent";
+  var log = document.getElementById("log");
+  var input = document.getElementById("input");
+  var sendBtn = document.getElementById("send");
+  var providerSel = document.getElementById("provider");
+  // guard a stale/unknown stored value — an invalid .value leaves the select blank
+  try {
+    var savedProv = localStorage.getItem("bt3-provider") || "claude";
+    var known = Array.prototype.map.call(providerSel.options, function(o){ return o.value; });
+    providerSel.value = known.indexOf(savedProv) >= 0 ? savedProv : "claude";
+  } catch(e){}
+  providerSel.addEventListener("change", function(){ try { localStorage.setItem("bt3-provider", providerSel.value); } catch(e){} });
+  var history = [];        // [{role, content}] — assistant entries are final text only
+  var aborter = null;
+
+  // ---------- Plant site password (SITE_PASSWORD on the function) ----------
+  var siteKey = "";
+  try { siteKey = sessionStorage.getItem("bt3-site-key") || ""; } catch (e) {}
+  var siteReady = false;
+  var siteReadyWaiters = [];
+  function whenSiteReady(fn) {
+    if (siteReady) { fn(); return; }
+    siteReadyWaiters.push(fn);
+  }
+  function markSiteReady() {
+    siteReady = true;
+    var q = siteReadyWaiters.splice(0);
+    for (var i = 0; i < q.length; i++) { try { q[i](); } catch (e) {} }
+  }
+  function showSiteGate(msg) {
+    var g = document.getElementById("site-gate");
+    if (!g) return;
+    g.hidden = false;
+    var err = document.getElementById("site-gate-err");
+    if (err) {
+      if (msg) { err.textContent = msg; err.classList.add("show"); }
+      else { err.textContent = ""; err.classList.remove("show"); }
+    }
+    setTimeout(function () {
+      var inp = document.getElementById("site-pass");
+      if (inp) inp.focus();
+    }, 50);
+  }
+  function hideSiteGate() {
+    var g = document.getElementById("site-gate");
+    if (g) g.hidden = true;
+  }
+  // Attach site key to every agent call (chat, mixes, what-if, admin)
+  var _nativeFetch = window.fetch.bind(window);
+  window.fetch = function (input, init) {
+    init = init || {};
+    var url = typeof input === "string" ? input : (input && input.url) || "";
+    if (url.indexOf("/.netlify/functions/agent") !== -1) {
+      var headers = new Headers(init.headers || {});
+      if (siteKey) headers.set("X-DBT-Site-Key", siteKey);
+      init = Object.assign({}, init, { headers: headers });
+    }
+    return _nativeFetch(input, init).then(function (res) {
+      if (res.status === 401 && url.indexOf("/.netlify/functions/agent") !== -1) {
+        siteKey = "";
+        try { sessionStorage.removeItem("bt3-site-key"); } catch (e) {}
+        showSiteGate("Session expired or wrong password — unlock again.");
+      }
+      return res;
+    });
+  };
+  function trySiteUnlock() {
+    var inp = document.getElementById("site-pass");
+    var btn = document.getElementById("site-unlock");
+    var p = inp ? inp.value.trim() : "";
+    if (!p) { if (inp) inp.focus(); return; }
+    if (btn) { btn.disabled = true; btn.textContent = "Checking…"; }
+    _nativeFetch(ENDPOINT, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ action: "site_auth", site_key: p }),
+    })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+      .then(function (res) {
+        if (res.ok && res.d && res.d.ok) {
+          siteKey = p;
+          try { sessionStorage.setItem("bt3-site-key", p); } catch (e) {}
+          hideSiteGate();
+          markSiteReady();
+        } else {
+          showSiteGate((res.d && res.d.message) || "Wrong password.");
+          if (inp) { inp.select(); inp.focus(); }
+        }
+      })
+      .catch(function (e) {
+        showSiteGate(String(e.message || e));
+      })
+      .finally(function () {
+        if (btn) { btn.disabled = false; btn.textContent = "Unlock"; }
+      });
+  }
+  document.getElementById("site-unlock").addEventListener("click", trySiteUnlock);
+  document.getElementById("site-pass").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") trySiteUnlock();
+  });
+  // Boot: is a password required? If we already have one, verify; else unlock or skip.
+  (function bootSiteGate() {
+    _nativeFetch(ENDPOINT + "?site_status=1")
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d || !d.required) {
+          hideSiteGate();
+          markSiteReady();
+          return;
+        }
+        if (!siteKey) {
+          showSiteGate();
+          return;
+        }
+        return _nativeFetch(ENDPOINT, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ action: "site_auth", site_key: siteKey }),
+        })
+          .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+          .then(function (res) {
+            if (res.ok && res.j && res.j.ok) {
+              hideSiteGate();
+              markSiteReady();
+            } else {
+              siteKey = "";
+              try { sessionStorage.removeItem("bt3-site-key"); } catch (e) {}
+              showSiteGate("Enter the plant site password.");
+            }
+          });
+      })
+      .catch(function () {
+        // If probe fails (offline shell), let the app open; live calls will 401 later
+        hideSiteGate();
+        markSiteReady();
+      });
+  })();
+
+  // ---------- theme (light / dark) ----------
+  function currentTheme() {
+    return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
+  }
+  function applyTheme(theme) {
+    var t = theme === "dark" ? "dark" : "light";
+    document.documentElement.setAttribute("data-theme", t);
+    try { localStorage.setItem("bt3-theme", t); } catch (e) {}
+    var meta = document.getElementById("meta-theme-color");
+    if (meta) meta.setAttribute("content", t === "dark" ? "#0c0e12" : "#ffffff");
+    var bar = document.getElementById("meta-status-bar");
+    if (bar) bar.setAttribute("content", t === "dark" ? "black-translucent" : "default");
+    var btn = document.getElementById("theme-toggle");
+    if (btn) {
+      btn.title = t === "dark" ? "Switch to light theme" : "Switch to dark theme";
+      btn.setAttribute("aria-label", btn.title);
+    }
+  }
+  applyTheme(currentTheme()); // sync meta + labels with head script
+  document.getElementById("theme-toggle").addEventListener("click", function () {
+    applyTheme(currentTheme() === "dark" ? "light" : "dark");
+  });
+
+  // ---------- clear conversation ----------
+  var clearBtn = document.getElementById("clear-chat");
+  var clearPop = document.getElementById("clear-pop");
+  function setClearOpen(open) {
+    clearPop.hidden = !open;
+    clearBtn.setAttribute("aria-expanded", open ? "true" : "false");
+  }
+  clearBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    setClearOpen(clearPop.hidden);
+  });
+  document.getElementById("clear-cancel").addEventListener("click", function () { setClearOpen(false); });
+  document.addEventListener("click", function (e) {
+    if (!clearPop.hidden && !clearPop.contains(e.target) && e.target !== clearBtn && !clearBtn.contains(e.target)) {
+      setClearOpen(false);
+    }
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && !clearPop.hidden) setClearOpen(false);
+  });
+  function showWelcome() {
+    var w = document.createElement("div");
+    w.className = "welcome";
+    w.innerHTML = "<strong>Danville Lab Agent</strong>Ask about a mix, a stockpile, or a test result.";
+    log.appendChild(w);
+  }
+
+  // Contextual follow-ups derived from which tools actually ran this turn — no model call.
+  function followUpsFor(st) {
+    var t = st.toolsUsed || {}, out = [];
+    var mix = st.designName || "";
+    if (t.spec_check) out.push("Log this lot result to the plant log");
+    if (t.blend || t.analyze) {
+      out.push("What if I also drop AC 0.1?");
+      if (mix) out.push("Has " + mix + " done this before?");
+    }
+    if (t.get_design && !t.analyze && !t.blend) out.push("What would a 2-point bin move do to voids?");
+    if (t.spec_check && mix) out.push("What's driving the biggest pay loss?");
+    if (!out.length) out.push("Show me the Bailey ratios for this mix", "What does the spec say about this?");
+    return out.slice(0, 3);
+  }
+  function showFollowUps(st) {
+    var qs = followUpsFor(st);
+    if (!qs.length || !st.box) return;
+    var lab = el("div", "fu-label", st.box);
+    lab.textContent = "Next";
+    var wrap = el("div", "followups", st.box);
+    qs.forEach(function (q) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "qchip";
+      b.textContent = q;
+      b.addEventListener("click", function () { input.value = q; autoGrow(); send(); });
+      wrap.appendChild(b);
+    });
+  }
+  document.getElementById("clear-confirm").addEventListener("click", function () {
+    if (aborter) { try { aborter.abort(); } catch (e) {} aborter = null; sendBtn.textContent = "Send"; sendBtn.classList.remove("stop"); }
+    history = [];
+    log.innerHTML = "";
+    setClearOpen(false);
+    showWelcome();
+    input.focus();
+  });
+
+  // ---------- rendering ----------
+  function esc(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+  function renderMd(text) {
+    var html;
+    if (window.marked && window.DOMPurify) {
+      try { html = DOMPurify.sanitize(marked.parse(text, {breaks:true})); }
+      catch(e){ html = "<p>" + esc(text).replace(/\n/g,"<br>") + "</p>"; }
+    } else {
+      html = "<p>" + esc(text).replace(/\n/g,"<br>") + "</p>";
+    }
+    // Citation chips: [SPEC p.412], [KM p.88], [JMF 00260116 ⚠ unverified], [day2-slide-047], [CID 252112 line 0320]...
+    html = html.replace(/\[([^\[\]\n]{2,70})\]/g, function (m, inner) {
+      if (/^(x| |✓)?$/.test(inner)) return m; // task-list brackets
+      var amber = /⚠|unverified/i.test(inner);
+      return '<span class="cite' + (amber ? ' amber' : '') + '">' + inner + '</span>';
+    });
+    return html;
+  }
+
+  function el(tag, cls, parent) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function scrollDown(){ log.scrollTop = log.scrollHeight; }
+
+  // ---------- one agent turn ----------
+  function newAgentTurn() {
+    var turn = el("div","turn",log);
+    var box = el("div","agent",turn);
+    var state = {
+      box: box,
+      segText: "",           // text of the current (possibly interim) segment
+      segDiv: null,          // live div for the streaming segment
+      activity: null,        // chip row
+      finished: false,
+      gotAnswer: false,
+      toolsUsed: {},         // which deterministic tools ran (drives follow-ups)
+      designName: ""         // mix name seen this turn
+    };
+    state.status = el("div","status",box);
+    state.status.textContent = "Working…";
+    return state;
+  }
+
+  function ensureSegDiv(st) {
+    if (!st.segDiv) {
+      st.segDiv = el("div","answer cursor",st.box);
+    }
+    return st.segDiv;
+  }
+
+  // Current streamed segment turned out to be interim reasoning (tools followed) —
+  // demote it to a collapsed <details>.
+  function demoteSegment(st) {
+    if (!st.segDiv || !st.segText.trim()) { if (st.segDiv){st.segDiv.remove(); st.segDiv=null;} st.segText=""; return; }
+    var d = document.createElement("details");
+    d.className = "interim";
+    d.innerHTML = "<summary>agent reasoning (interim)</summary>";
+    var b = el("div","body",d);
+    b.innerHTML = renderMd(st.segText);
+    st.segDiv.replaceWith(d);
+    st.segDiv = null; st.segText = "";
+  }
+
+  function ensureActivity(st) {
+    if (!st.activity) st.activity = el("div","activity",st.box);
+    return st.activity;
+  }
+
+  function designNameFromId(id) {
+    if (!id || !MIXES) return "";
+    var dig = String(id).replace(/\D/g, "");
+    for (var i = 0; i < MIXES.length; i++) {
+      var m = MIXES[i];
+      if (!m) continue;
+      if (m.id === id || (dig && String(m.id).endsWith(dig))) return m.name || m.id;
+    }
+    return "";
+  }
+  function toolChipLabel(ev) {
+    if (ev.label) return ev.label;
+    var map = {
+      get_design: "Get Design",
+      get_aggregates: "Stockpiles",
+      bailey_calc: "Bailey math",
+      search_bailey: "Bailey notes",
+      search_spec: "Specs / KM",
+      plant_log: "Plant history",
+      query_dataverse: "QC data"
+    };
+    return map[ev.name] || ev.name || "Tool";
+  }
+  function toolChipDetail(ev) {
+    if (ev.detail) return ev.detail;
+    var input = ev.input || {};
+    if (ev.name === "get_design" || ev.name === "get_aggregates" || ev.name === "bailey_calc") {
+      var id = input.jmf_number_or_cid || input.jmf_id || "";
+      var nm = designNameFromId(id);
+      if (nm) return nm;
+      // Don't show bare JMF digits as the detail — wait for tool_result name
+      if (id && !/^\d+$/.test(String(id).replace(/\s/g, ""))) return String(id);
+      return "";
+    }
+    try {
+      return String(input.query || input.query_or_cid || input.question || input.entry || input.action || "");
+    } catch (e) { return ""; }
+  }
+  function updateToolChip(chip, ev) {
+    if (!chip) return;
+    var lab = toolChipLabel(ev);
+    var det = toolChipDetail(ev);
+    chip.innerHTML = '<span class="nm">' + esc(lab) + '</span>' +
+      (det ? '<span class="in">' + esc(det) + "</span>" : "");
+  }
+
+  // ---------- deterministic result cards (rendered from computed numbers) ----------
+  function payClass(p) {
+    if (p == null) return "pay-bad";
+    if (p >= 1.05) return "pay-good";
+    if (p >= 1) return "pay-ok";
+    if (p >= 0.9) return "pay-low";
+    return "pay-bad";
+  }
+  function fmt(n, d) {
+    if (n == null || n === "") return "—";
+    var v = Number(n);
+    return Number.isFinite(v) ? (d != null ? v.toFixed(d) : String(v)) : String(n);
+  }
+  function specCard(v) {
+    var h = '<div class="rcard"><div class="rhead"><span class="rtitle">' +
+      esc(v.title || "Acceptance check") + '</span><span class="rsub">computed</span></div>';
+    h += '<div class="rnote" style="margin:-2px 0 7px">' + esc(v.schedule || "") + "</div>";
+    h += '<table><thead><tr><th>Property</th><th class="num">Result</th><th class="num">Wt</th><th class="num">Pay</th><th>Band</th></tr></thead><tbody>';
+    (v.properties || []).forEach(function (p) {
+      h += "<tr><td>" + esc(p.property) + '</td><td class="num">' + fmt(p.sample) +
+        '</td><td class="num">' + fmt(p.weight) + '%</td><td class="num"><span class="pay ' + payClass(p.pay) + '">' +
+        (p.pay == null ? "R/R" : fmt(p.pay, 2)) + "</span></td><td>" + esc(p.band || "") + "</td></tr>";
+    });
+    h += "</tbody></table>";
+    h += '<div class="rfoot"><span class="rsub">Composite</span><span class="big">' + fmt(v.composite, 4) + "</span>";
+    if (v.dollars != null) {
+      var d = Number(v.dollars);
+      h += '<span class="rsub">Lot adjustment</span><span class="big" style="color:' +
+        (d < 0 ? "var(--err-text)" : "var(--ok-text)") + '">' +
+        (d < 0 ? "−$" : "+$") + Math.abs(d).toLocaleString() + "</span>";
+    }
+    if (v.rr) h += '<span class="pay pay-bad">remove / replace evaluation</span>';
+    h += "</div>";
+    var outs = (v.drift || []).filter(function (g) { return !g.within; });
+    if (outs.length) {
+      h += '<div class="rnote">Gradation off JMF: ' + outs.map(function (g) {
+        return esc(g.sieve) + " " + (g.dev > 0 ? "+" : "") + fmt(g.dev, 1) + " (tol ±" + fmt(g.tol, 1) + ")";
+      }).join(" · ") + "</div>";
+    } else if ((v.drift || []).length) {
+      h += '<div class="rnote">Gradation within monitor tolerances on all ' + v.drift.length + " reported sieves.</div>";
+    }
+    if (v.composite_note) h += '<div class="rnote">' + esc(v.composite_note) + "</div>";
+    return h + "</div>";
+  }
+  function ratioBar(label, val, prev, range) {
+    var lo = range && range[0] != null ? range[0] : 0.3, hi = range && range[1] != null ? range[1] : 0.6;
+    var min = Math.min(lo, hi, val == null ? lo : val, prev == null ? lo : prev) - 0.1;
+    var max = Math.max(lo, hi, val == null ? hi : val, prev == null ? hi : prev) + 0.1;
+    var span = (max - min) || 1;
+    var pos = function (x) { return Math.max(0, Math.min(100, ((x - min) / span) * 100)); };
+    var h = '<div class="rbar"><span class="rlab">' + esc(label) + '</span><span class="track">';
+    h += '<span class="band" style="left:' + pos(lo) + "%;width:" + Math.max(1, pos(hi) - pos(lo)) + '%"></span>';
+    if (prev != null && prev !== val) h += '<span class="mk prev" style="left:' + pos(prev) + '%"></span>';
+    if (val != null) h += '<span class="mk" style="left:' + pos(val) + '%"></span>';
+    h += '</span><span class="rval">' + fmt(val, 3);
+    if (prev != null && prev !== val) h += ' <span class="was">←' + fmt(prev, 3) + "</span>";
+    return h + "</span></div>";
+  }
+  // 0.45 power chart — the gradation view every mix person reads.
+  function powerChart45(curve, controls, labels) {
+    var rows = (curve || []).filter(function (r) { return Number.isFinite(r.mm) && r.a != null; });
+    if (rows.length < 3) return "";
+    var W = 330, H = 170, ml = 26, mr = 8, mt = 8, mb = 22;
+    var top = Math.max.apply(null, rows.map(function (r) { return r.mm; }));
+    var px = function (mm) { return ml + (Math.pow(mm, 0.45) / Math.pow(top, 0.45)) * (W - ml - mr); };
+    var py = function (p) { return mt + (1 - p / 100) * (H - mt - mb); };
+    var s = '<svg class="chart45" viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="0.45 power gradation chart">';
+    [0, 25, 50, 75, 100].forEach(function (p) {
+      s += '<line class="grid" x1="' + ml + '" y1="' + py(p) + '" x2="' + (W - mr) + '" y2="' + py(p) + '"/>';
+      s += '<text x="' + (ml - 4) + '" y="' + (py(p) + 3) + '" text-anchor="end">' + p + "</text>";
+    });
+    // maximum density line: origin → (top size, 100)
+    s += '<line class="mdl" x1="' + px(0.0001) + '" y1="' + py(0) + '" x2="' + px(top) + '" y2="' + py(100) + '"/>';
+    // control sieves
+    var ctl = controls || {};
+    var placed = [];
+    [["pcs", "PCS"], ["scs", "SCS"], ["tcs", "TCS"]].forEach(function (c) {
+      var m = ctl[c[0]] && (ctl[c[0]].mm != null ? ctl[c[0]].mm : ctl[c[0]]);
+      if (!Number.isFinite(m) || m > top) return;
+      var x = px(m);
+      s += '<line class="ctl" x1="' + x + '" y1="' + py(0) + '" x2="' + x + '" y2="' + py(100) + '"/>';
+      // stagger labels so close control sieves (TCS/SCS) don't collide
+      var row = 0;
+      while (placed.some(function (q) { return q.row === row && Math.abs(q.x - x) < 22; })) row++;
+      placed.push({ x: x, row: row });
+      s += '<text class="axl" x="' + x + '" y="' + (mt + 8 + row * 9) + '" text-anchor="middle">' + c[1] + "</text>";
+    });
+    var line = function (key) {
+      var pts = rows.filter(function (r) { return r[key] != null; })
+        .sort(function (a, b) { return a.mm - b.mm; })
+        .map(function (r) { return px(r.mm) + "," + py(r[key]); });
+      return pts.length > 1 ? pts.join(" ") : null;
+    };
+    var la = line("a"), lb = line("b");
+    if (la) s += '<polyline class="ln-a" points="' + la + '"/>';
+    if (lb) s += '<polyline class="ln-b" points="' + lb + '"/>';
+    rows.forEach(function (r) {
+      if (r.b != null) s += '<circle class="dot-b" cx="' + px(r.mm) + '" cy="' + py(r.b) + '" r="2.2"/>';
+    });
+    // x labels on the sieves techs read
+    var lastX = -99;
+    rows.slice().sort(function (a, b) { return a.mm - b.mm; }).forEach(function (r) {
+      if (!/^(#4|#8|#30|#200|3\/8"|1\/2"|3\/4"|1")$/.test(r.label || "")) return;
+      var x = px(r.mm);
+      if (x - lastX < 26) return;            // skip crowded neighbours
+      lastX = x;
+      s += '<text x="' + x + '" y="' + (H - 7) + '" text-anchor="middle">' + esc(r.label) + "</text>";
+    });
+    s += '<text class="axl" x="' + (ml - 4) + '" y="' + (H - 7) + '" text-anchor="end">% pass</text>';
+    s += "</svg>";
+    var L = labels || { a: "Design", b: "Sample" };
+    var leg = '<div class="rlegend"><span><i style="border-top-color:var(--muted)"></i>' + esc(L.a) + "</span>";
+    if (lb) leg += '<span><i style="border-top-color:var(--accent)"></i>' + esc(L.b) + "</span>";
+    leg += '<span><i style="border-top-color:var(--muted);border-top-style:dashed"></i>max density</span></div>';
+    return s + leg;
+  }
+  function baileyCard(v) {
+    var rl = v.ratio_labels || { design: "Design", sample: "Sample" };
+    var A = v.ratios ? v.ratios.design : null, B = v.ratios ? v.ratios.sample : null;
+    var cur = B || A, prev = B ? A : null;
+    var h = '<div class="rcard"><div class="rhead"><span class="rtitle">' +
+      esc(v.title || "Bailey ratios") + '</span><span class="rsub">computed</span></div>';
+    if (cur) {
+      h += ratioBar("CA", cur.ca, prev ? prev.ca : null, cur.ca_range);
+      h += ratioBar("FAc", cur.fac, prev ? prev.fac : null, cur.fac_range);
+      h += ratioBar("FAf", cur.faf, prev ? prev.faf : null, cur.faf_range);
+      h += '<div class="rnote">Green band = suggested range' +
+        (prev ? "; grey mark = " + esc(rl.design) + ", gold = " + esc(rl.sample) : "") + ".</div>";
+    }
+    var chart = powerChart45(v.curve, v.controls, v.curve_labels);
+    if (chart) h += chart;
+    if (v.prediction) {
+      var p = v.prediction;
+      h += '<div class="rfoot">';
+      if (p.predicted_va != null) h += '<span class="rsub">Predicted Va</span><span class="big">' + fmt(p.predicted_va, 2) + "%</span>";
+      if (p.delta_va_total != null) h += '<span class="rsub">ΔVa</span><span class="big">' + (p.delta_va_total > 0 ? "+" : "") + fmt(p.delta_va_total, 2) + "</span>";
+      h += "</div>";
+    }
+    if (v.plant_rules_ok === false) h += '<div class="rnote" style="color:var(--err-text)">⚠ ' + esc(v.plant_rules_summary || "Plant bin rules violated.") + "</div>";
+    if (v.freshness && /STALE/i.test(v.freshness)) h += '<div class="rnote" style="color:var(--flag-text)">⚠ ' + esc(v.freshness) + "</div>";
+    return h + "</div>";
+  }
+  function renderVizCard(st, viz) {
+    if (!viz) return;
+    var html = viz.kind === "spec_check" ? specCard(viz) : baileyCard(viz);
+    if (!html) return;
+    var holder = el("div", "", st.box);
+    holder.innerHTML = html;
+    scrollDown();
+  }
+
+  function handleEvent(st, ev) {
+    switch (ev.type) {
+      case "start":
+        st.status.textContent = "Connected (" + (ev.model || "") + ")…";
+        break;
+      case "round":
+        st.status.textContent = !ev.forced ? "Round " + ev.round + "…"
+          : ev.reason === "time"
+            ? "Round " + ev.round + " — taking a while, wrapping up with what we have…"
+            : "Round " + ev.round + " — round limit reached, wrapping up…";
+        break;
+      case "text":
+        st.segText += ev.text;
+        ensureSegDiv(st).innerHTML = renderMd(st.segText);
+        scrollDown();
+        break;
+      case "tool": {
+        demoteSegment(st);
+        var chip = el("span","tchip pend",ensureActivity(st));
+        updateToolChip(chip, ev);
+        st.lastChip = chip;
+        var lab0 = toolChipLabel(ev);
+        var det0 = toolChipDetail(ev);
+        st.status.textContent = lab0 + (det0 ? " — " + det0 : "") + "…";
+        scrollDown();
+        break;
+      }
+      case "tool_result":
+        if (st.lastChip) {
+          st.lastChip.classList.remove("pend");
+          if (!ev.ok) st.lastChip.classList.add("fail");
+          // Refresh label/detail (e.g. Get Design + "CL3 0.38D 64-22 …")
+          if (ev.label || ev.detail) updateToolChip(st.lastChip, ev);
+          var lab1 = toolChipLabel(ev);
+          var det1 = toolChipDetail(ev);
+          if (lab1) st.status.textContent = lab1 + (det1 ? " — " + det1 : "");
+        }
+        if (ev.name === "get_design") st.toolsUsed.get_design = true;
+        if (ev.viz) {
+          if (ev.viz.kind === "spec_check") st.toolsUsed.spec_check = true;
+          else if (ev.viz.kind === "analyze") st.toolsUsed.analyze = true;
+          else st.toolsUsed.blend = true;
+          if (ev.viz.title) st.designName = ev.viz.title;
+          demoteSegment(st);
+          renderVizCard(st, ev.viz);
+        }
+        if (!st.designName && ev.detail && /[A-Za-z]/.test(ev.detail)) st.designName = ev.detail;
+        break;
+      case "notice": {
+        // Degraded-run banner. Must be visible in its own right: the tech has to know
+        // the answer is partial even if the model forgets to say so.
+        var nb = el("div","errbox warn",st.box);
+        nb.textContent = "⚠ " + (ev.message || "");
+        scrollDown();
+        break;
+      }
+      case "error": {
+        var eb = el("div","errbox",st.box);
+        eb.textContent = "⚠ " + (ev.message || "Unknown error");
+        scrollDown();
+        break;
+      }
+      case "done":
+        st.finished = true;
+        break;
+    }
+  }
+
+  function finishTurn(st, hadStreamError) {
+    st.status.remove();
+    if (st.segDiv) st.segDiv.classList.remove("cursor");
+    var answer = st.segText.trim();
+    if (answer) {
+      st.gotAnswer = true;
+      history.push({ role: "assistant", content: answer });
+      try { showFollowUps(st); } catch (e) { /* follow-ups are a nicety, never break the turn */ }
+    } else if (!hadStreamError && !st.box.querySelector(".errbox")) {
+      var eb = el("div","errbox",st.box);
+      eb.textContent = "⚠ No answer was produced (stream ended empty). This is a failure, not a blank — try again or check the Netlify function logs.";
+    }
+    scrollDown();
+  }
+
+  // ---------- send / stream ----------
+  async function send() {
+    var q = input.value.trim();
+    if (!q || aborter) return;
+    input.value = ""; autoGrow();
+    var ut = el("div","turn",log);
+    el("div","user-msg",ut).textContent = q;
+    history.push({ role: "user", content: q });
+    scrollDown();
+
+    var st = newAgentTurn();
+    aborter = new AbortController();
+    sendBtn.textContent = "Stop"; sendBtn.classList.add("stop");
+
+    var hadStreamError = false;
+    try {
+      var res = await fetch(ENDPOINT, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ messages: history.slice(-16), provider: providerSel.value }),
+        signal: aborter.signal
+      });
+      if (!res.ok || !res.body) {
+        var t = "";
+        try { t = await res.text(); } catch(e){}
+        var detail = t;                                   // show the human message, not raw JSON
+        try { var pj = JSON.parse(t); if (pj && pj.error) detail = pj.error; } catch(e){}
+        throw new Error("HTTP " + res.status + (detail ? " — " + detail.slice(0,300) : ""));
+      }
+      var reader = res.body.getReader();
+      var dec = new TextDecoder();
+      var buf = "";
+      while (true) {
+        var chunk = await reader.read();
+        if (chunk.done) break;
+        buf += dec.decode(chunk.value, { stream: true });
+        var idx;
+        while ((idx = buf.indexOf("\n\n")) >= 0) {
+          var frame = buf.slice(0, idx); buf = buf.slice(idx + 2);
+          var line = frame.split("\n").find(function(l){ return l.indexOf("data:") === 0; });
+          if (!line) continue;
+          var ev;
+          try { ev = JSON.parse(line.slice(5)); } catch(e){ continue; }
+          handleEvent(st, ev);
+        }
+      }
+    } catch (e) {
+      hadStreamError = true;
+      var msg = (e.name === "AbortError") ? "Stopped by user." :
+        "Request failed: " + (e.message || e) + "\nNothing was hidden — this is the raw failure.";
+      var eb = el("div","errbox",st.box);
+      eb.textContent = "⚠ " + msg;
+    } finally {
+      finishTurn(st, hadStreamError);
+      aborter = null;
+      sendBtn.textContent = "Send"; sendBtn.classList.remove("stop");
+      input.focus();
+    }
+  }
+
+  sendBtn.addEventListener("click", function () {
+    if (aborter) { aborter.abort(); return; }
+    send();
+  });
+  input.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (!aborter) send(); }
+  });
+  function autoGrow(){ input.style.height="auto"; input.style.height=Math.min(input.scrollHeight,180)+"px"; }
+  input.addEventListener("input", autoGrow);
+
+  // ---------- preset forms ----------
+  function $(id){ return document.getElementById(id); }
+  function hideForms(){
+    document.querySelectorAll(".preset-form").forEach(function(f){ f.hidden = true; });
+    document.querySelectorAll(".pchip").forEach(function(c){ c.classList.remove("active"); });
+  }
+  document.querySelectorAll(".pchip").forEach(function (chip) {
+    chip.addEventListener("click", function () {
+      var f = $(chip.getAttribute("data-form"));
+      var wasHidden = f.hidden;
+      hideForms();
+      f.hidden = !wasHidden;
+      if (!f.hidden) chip.classList.add("active");
+      var df = chip.getAttribute("data-form");
+      if (!f.hidden && (df === "mixform" || df === "phform" || df === "pfform" || df === "wifform" || df === "jdform" || df === "smform")) loadMixes();
+      if (!f.hidden && df === "smform") loadSamples();
+      if (!f.hidden) {
+        var first = f.querySelector("input,textarea,select");
+        if (first && window.matchMedia && !window.matchMedia("(max-width:720px)").matches) first.focus();
+      }
+    });
+  });
+
+  // ---------- Recent samples: what actually ran, with its running bins ----------
+  // Reads ?samples=1, which goes through db.getSamples -> test_bin_percentages.
+  // That is the only trustworthy bin identity at Danville (44/44 rows carry
+  // material_id); a design's components are size designations in a different
+  // vocabulary. So this panel shows the mix as RUN, never the recipe.
+  var SAMPLES = [], smSelected = null;
+  function smBins(sm) {
+    return (sm.bins || []).map(function (b) {
+      var pct = (b.percent == null ? "?" : b.percent) + "%";
+      var nm  = b.agg_type || "(unidentified bin)";
+      // A bin can name a stockpile the plant has stopped offering. That is the
+      // record of what ran -- mark it, never quietly drop or "correct" it.
+      var off = (b.still_offered === false) ? ' <span class="gbadge gb-stale">retired</span>' : "";
+      return '<span class="tchip">' + esc(pct + " " + nm) + off + "</span>";
+    }).join(" ");
+  }
+  function smRow(sm, i) {
+    var when = sm.sampled_at ? String(sm.sampled_at).slice(0, 10) : "—";
+    var lot  = (sm.lot != null ? "Lot " + sm.lot : "") + (sm.sublot != null ? "-" + sm.sublot : "");
+    var ac   = sm.ac_pct != null ? " · AC " + sm.ac_pct + "%" : "";
+    return '<div class="grad-row sm-row" data-i="' + i + '" role="button" tabindex="0" style="display:block;cursor:pointer">' +
+      '<div><strong>' + esc(sm.design_name || "(no design on record)") + "</strong>" +
+      '<span class="gdate"> ' + esc(when + (lot ? " · " + lot : "") + ac) + "</span></div>" +
+      '<div style="margin-top:4px">' + smBins(sm) + "</div></div>";
+  }
+  function loadSamples() {
+    var mix = selectedMix("sm-mix");
+    var q = ENDPOINT + "?samples=1" + (mix ? "&design=" + encodeURIComponent(mix.name) : "");
+    $("sm-feed").innerHTML = '<div class="ctempty">Loading recent samples…</div>';
+    $("sm-go").disabled = true; smSelected = null;
+    fetch(q).then(function (r) { return r.json(); }).then(function (d) {
+      SAMPLES = d.samples || [];
+      if (!SAMPLES.length) {
+        $("sm-feed").innerHTML = '<div class="ctempty">No volumetric tests recorded' +
+          (mix ? " for " + esc(mix.name) : "") + " yet.</div>";
+        return;
+      }
+      var note = d.retired_bin_note
+        ? '<div class="gsub" style="margin-bottom:6px">⚠ ' + esc(d.retired_bin_note) + "</div>" : "";
+      $("sm-feed").innerHTML = note + SAMPLES.map(smRow).join("");
+    }).catch(function () {
+      $("sm-feed").innerHTML = '<div class="ctempty">Couldn\'t load recent samples.</div>';
+    });
+  }
+  $("sm-mix").addEventListener("change", loadSamples);
+  $("sm-feed").addEventListener("click", function (e) {
+    var row = e.target.closest ? e.target.closest(".sm-row") : null;
+    if (!row) return;
+    document.querySelectorAll("#sm-feed .sm-row").forEach(function (r) { r.classList.remove("active"); });
+    row.classList.add("active");
+    smSelected = SAMPLES[+row.getAttribute("data-i")] || null;
+    $("sm-go").disabled = !smSelected;
+  });
+  $("sm-go").addEventListener("click", function () {
+    var sm = smSelected;
+    if (!sm) return;
+    var lines = ["Look at this sample."];
+    lines.push("Mix design: " + (sm.design_name || "(not recorded)"));
+    if (sm.lot != null) lines.push("Lot " + sm.lot + (sm.sublot != null ? "-" + sm.sublot : ""));
+    if (sm.sampled_at) lines.push("Sampled: " + String(sm.sampled_at).slice(0, 10));
+    if (sm.ac_pct != null) lines.push("AC (burn-off): " + sm.ac_pct + "%");
+    var bins = (sm.bins || []).map(function (b) { return (b.percent == null ? "?" : b.percent) + "% " + (b.agg_type || "unidentified"); });
+    if (bins.length) lines.push("Bins as run: " + bins.join(", "));
+    lines.push("These are the bins the plant actually ran, so use them over the design's components. " +
+      "What do you see, and is there anything I should change?");
+    composeToInput(lines.join("\n"));
+  });
+
+  // ---------- mix-design dropdown: load list, auto-fill from the mix pack ----------
+  var MIXES = null, mixesRequested = false;
+  function loadMixes() {
+    if (mixesRequested) return;
+    mixesRequested = true;
+    fetch(ENDPOINT + "?mixes=1")
+      .then(function (r) { return r.json(); })
+      .then(function (d) { populateMixes(d.mixes || []); })
+      .catch(function () {
+        document.querySelectorAll("select.mix-select").forEach(function (s) {
+          s.innerHTML = '<option value="">(mix list unavailable)</option><option value="other">Type it manually</option>';
+        });
+      });
+  }
+  function populateMixes(list) {
+    MIXES = list;
+    var html = '<option value="">— pick a mix design —</option>' +
+      list.map(function (m, i) { return '<option value="' + i + '">' + esc(m.name) + "</option>"; }).join("") +
+      '<option value="other">Other / not listed</option>';
+    document.querySelectorAll("select.mix-select").forEach(function (s) {
+      // On the samples panel an empty value means "every mix", not "nothing
+      // picked yet", so it keeps its own first option.
+      s.innerHTML = (s.id === "sm-mix")
+        ? '<option value="">All mixes</option>' +
+          list.map(function (m, i) { return '<option value="' + i + '">' + esc(m.name) + "</option>"; }).join("")
+        : html;
+    });
+  }
+  function selectedMix(sel) {
+    var el = $(sel);
+    var v = el ? el.value : "";
+    return (MIXES && v !== "" && v !== "other") ? MIXES[+v] : null;
+  }
+  $("mf-mix").addEventListener("change", function () {
+    var other = $("mf-mix").value === "other";
+    $("mf-mix-other").style.display = other ? "block" : "none";
+    var m = selectedMix("mf-mix");
+    if (!m) return;
+    // bins from the mix pack (tech edits to actual plant settings)
+    var rows = document.querySelectorAll("#mixform .binrow");
+    rows.forEach(function (row, i) {
+      var b = m.bins[i];
+      row.querySelector(".bin-pct").value  = b ? String(b.pct) : "";
+      row.querySelector(".bin-type").value = b ? b.type : "";
+      row.querySelector(".bin-loc").value  = b ? b.loc : "";
+    });
+    // gradation prefilled with JMF targets (tech overwrites with the burn-off)
+    document.querySelectorAll("#mixform .sv").forEach(function (s) {
+      var t = m.grad[s.getAttribute("data-sieve")];
+      s.value = t == null ? "" : String(t);
+    });
+    if (m.ac != null) $("mf-ac").value = String(m.ac);
+    if (m.gmm != null) $("mf-gmm").value = String(m.gmm);
+  });
+  document.querySelectorAll("[data-close]").forEach(function (btn) {
+    btn.addEventListener("click", function(){
+      var id = btn.getAttribute("data-close");
+      if ($(id)) $(id).hidden = true;
+      document.querySelectorAll(".pchip").forEach(function(c){
+        if (c.getAttribute("data-form") === id) c.classList.remove("active");
+      });
+    });
+  });
+  function composeToInput(text){
+    input.value = text;
+    hideForms();
+    autoGrow();
+    input.focus();
+  }
+  var mfMovesLast = null; // last suggest_moves payload for Mix change
+
+  function mfCollectBinPercents(mix) {
+    var pcts = [];
+    var rows = document.querySelectorAll("#mixform .binrow");
+    if (mix && mix.bins && mix.bins.length) {
+      for (var i = 0; i < mix.bins.length; i++) {
+        var row = rows[i];
+        var raw = row ? row.querySelector(".bin-pct").value.trim() : "";
+        var p = parseFloat(raw);
+        pcts.push(Number.isFinite(p) ? p : (mix.bins[i].pct != null ? mix.bins[i].pct : 0));
+      }
+    } else {
+      rows.forEach(function (r) {
+        var p = parseFloat(r.querySelector(".bin-pct").value);
+        if (Number.isFinite(p)) pcts.push(p);
+      });
+    }
+    return pcts;
+  }
+
+  function renderDiagnosis(elId, d) {
+    var box = $(elId);
+    if (!box || !d) { if (box) box.hidden = true; return; }
+    var h = '<div class="bch">AC vs packing (from your numbers)</div>';
+    h += '<table class="wi-bins"><tbody>';
+    if (d.sample_va != null) h += '<tr><td>Sample Va</td><td class="num">' + d.sample_va + "%</td></tr>";
+    if (d.design_va != null) h += '<tr><td>Design Va</td><td class="num">' + d.design_va + "%</td></tr>";
+    if (d.delta_ac != null) h += '<tr><td>ΔAC (sample − design)</td><td class="num">' + (d.delta_ac > 0 ? "+" : "") + d.delta_ac + "%</td></tr>";
+    if (d.approx_delta_va_from_ac != null)
+      h += '<tr><td>≈ ΔVa from AC</td><td class="num">' + (d.approx_delta_va_from_ac > 0 ? "+" : "") + d.approx_delta_va_from_ac + "%</td></tr>";
+    if (d.residual_va_after_ac != null)
+      h += '<tr><td><b>Residual (packing)</b></td><td class="num"><b>' + (d.residual_va_after_ac > 0 ? "+" : "") + d.residual_va_after_ac + "%</b></td></tr>";
+    h += "</tbody></table>";
+    if (d.note) h += '<div class="bcm">' + esc(d.note) + "</div>";
+    if (d.packing_vs_binder && d.packing_vs_binder !== "unknown")
+      h += '<div class="bcm">Driver: <b>' + esc(String(d.packing_vs_binder).replace(/_/g, " ")) + "</b>" +
+        (d.problem && d.problem !== "near_target" ? " · " + esc(String(d.problem).replace(/_/g, " ")) : "") + "</div>";
+    box.innerHTML = h;
+    box.hidden = false;
+  }
+
+  function confHtml(c) {
+    if (!c || !c.level) return "";
+    var lvl = String(c.level).toLowerCase();
+    var cls = lvl === "high" ? "conf-high" : lvl === "low" ? "conf-low" : "conf-medium";
+    var lab = c.label || (lvl.charAt(0).toUpperCase() + lvl.slice(1));
+    return '<span class="conf-pill ' + cls + '" title="' + esc(c.summary || c.how_to_read || "") + '">Confidence: ' +
+      esc(lab) + (c.score != null ? " (" + c.score + ")" : "") + "</span>";
+  }
+  function renderSuggestedMoves(elId, r, opts) {
+    opts = opts || {};
+    var box = $(elId);
+    if (!box) return;
+    if (!r || r.error) {
+      box.hidden = false;
+      box.innerHTML = '<div class="errbox" style="margin:0">⚠ ' + esc((r && (r.error || r.note)) || "No moves") + "</div>";
+      return;
+    }
+    var moves = r.moves || [];
+    var tgt = r.target_va != null ? r.target_va : (r.diagnosis && r.diagnosis.target_va != null ? r.diagnosis.target_va : 3.5);
+    var h = '<div class="bch">Verified moves → design Va ' + tgt + "% " + confHtml(r.confidence) + "</div>";
+    if (r.confidence && r.confidence.summary)
+      h += '<div class="bcm">' + esc(r.confidence.summary) + "</div>";
+    if (r.diagnosis && r.diagnosis.sample_va != null)
+      h += '<div class="bcm">Sample Va <b>' + r.diagnosis.sample_va + "%</b> · gap " +
+        (r.voids_gap != null ? r.voids_gap : "?") + " pts to target</div>";
+    if (r.note) h += '<div class="bcm">' + esc(r.note) + "</div>";
+    if (r.shortfall_note)
+      h += '<div class="bcm" style="color:var(--flag-text);font-weight:600">⚠ ' + esc(r.shortfall_note) + "</div>";
+    if (!moves.length) {
+      h += '<div class="bcm">No legal option improved predicted Va toward target.</div>';
+      box.innerHTML = h;
+      box.hidden = false;
+      return;
+    }
+    moves.forEach(function (m) {
+      var err = m.predicted_va != null ? Math.abs(m.predicted_va - tgt) : null;
+      var vcls = err != null && err < 0.35 ? "good" : err != null && err < 0.8 ? "caution" : m.verdict === "good" ? "good" : "caution";
+      h += '<div class="verdict ' + vcls + '" style="margin-top:8px"><strong>#' + m.rank + " " + esc(m.label || "") + "</strong>";
+      if (m.predicted_va != null)
+        h += " → pred Va <b>" + m.predicted_va + "%</b>" +
+          (m.approx_delta_va != null ? " (Δ " + (m.approx_delta_va > 0 ? "+" : "") + m.approx_delta_va + "%)" : "") +
+          ' <span style="opacity:.85">vs target ' + tgt + "%</span>";
+      if (m.confidence) h += " " + confHtml(m.confidence);
+      h += "</div>";
+      if (m.bin_changes && m.bin_changes.length) {
+        h += '<table class="wi-bins"><thead><tr><th>Bin</th><th class="num">Now</th><th class="num">To</th><th class="num">Δ</th></tr></thead><tbody>';
+        m.bin_changes.forEach(function (c) {
+          h += "<tr><td>" + esc(c.agg_type || "") + '</td><td class="num">' + c.from +
+            '</td><td class="num">' + c.to + '</td><td class="num">' + (c.delta > 0 ? "+" : "") + c.delta + "</td></tr>";
+        });
+        h += "</tbody></table>";
+      }
+      if (m.proposed_ac_delta)
+        h += '<div class="bcm">AC change: ' + (m.proposed_ac_delta > 0 ? "+" : "") + m.proposed_ac_delta + " pt</div>";
+      if (m.shortfall_to_target != null && m.shortfall_to_target > 0.35)
+        h += '<div class="bcm">Still ~' + m.shortfall_to_target + " pts short of " + tgt + "%</div>";
+      h += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">';
+      if (opts.applyId)
+        h += '<button type="button" class="ghost sm-apply" data-rank="' + m.rank + '" style="width:auto;padding:6px 12px;font-size:12px">Use in What if</button>';
+      h += '<button type="button" class="ghost sm-log" data-rank="' + m.rank + '" style="width:auto;padding:6px 12px;font-size:12px">Log prediction</button>';
+      h += "</div>";
+    });
+    h += '<div class="bcm" style="margin-top:8px">Advisory Bailey RoT + ACVC — confirm on the next sample. Log prediction, then log actual Va to calibrate.</div>';
+    h += '<div id="' + elId + '-logmsg" class="bcm" hidden></div>';
+    box.innerHTML = h;
+    box.hidden = false;
+    if (opts.applyId && opts.onApply) {
+      box.querySelectorAll(".sm-apply").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var rank = parseInt(btn.getAttribute("data-rank"), 10);
+          var move = moves.filter(function (m) { return m.rank === rank; })[0];
+          if (move) opts.onApply(move, r);
+        });
+      });
+    }
+    box.querySelectorAll(".sm-log").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var rank = parseInt(btn.getAttribute("data-rank"), 10);
+        var move = moves.filter(function (m) { return m.rank === rank; })[0];
+        if (!move) return;
+        btn.disabled = true;
+        btn.textContent = "Saving…";
+        var binsNote = (move.bin_changes || []).map(function (c) {
+          return (c.agg_type || "?") + " " + c.from + "→" + c.to;
+        }).join("; ");
+        if (move.proposed_ac_delta) binsNote += (binsNote ? "; " : "") + "AC Δ " + move.proposed_ac_delta;
+        var conf = move.confidence || r.confidence || {};
+        plantLogWrite({
+          entry: "Prediction: " + (r.design_name || "mix") + " → Va " + move.predicted_va + "%" +
+            (conf.label ? " [" + conf.label + " confidence]" : "") +
+            (binsNote ? " · " + binsNote : ""),
+          tags: [r.design_name || "", "prediction", "suggest_moves"].filter(Boolean),
+          data: {
+            kind: "prediction",
+            mix: r.design_name,
+            jmf_id: r.jmf_id,
+            predicted_va: move.predicted_va,
+            sample_va_before: r.diagnosis && r.diagnosis.sample_va,
+            design_va: tgt,
+            confidence: conf.level,
+            confidence_score: conf.score,
+            source: "suggest_moves",
+            bins_note: binsNote,
+          },
+        }).then(function (res) {
+          var msg = document.getElementById(elId + "-logmsg");
+          if (msg) {
+            msg.hidden = false;
+            msg.textContent = res && res.persisted
+              ? "Logged prediction" + (res.prediction_id ? " (" + res.prediction_id + ")" : "") + ". After the next sample, Log it with actual Va + that predicted Va."
+              : "Logged for this session only (persistent store unavailable).";
+          }
+          btn.textContent = "Logged ✓";
+        }).catch(function (e) {
+          btn.disabled = false;
+          btn.textContent = "Log prediction";
+          var msg = document.getElementById(elId + "-logmsg");
+          if (msg) { msg.hidden = false; msg.textContent = "Log failed: " + (e.message || e); }
+        });
+      });
+    });
+  }
+
+  function plantLogWrite(body) {
+    return fetch(ENDPOINT, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ plant_log: body }),
+    }).then(function (res) { return res.json().then(function (j) { if (!res.ok) throw new Error(j.error || res.status); return j; }); });
+  }
+
+  function applyMoveToWhatIf(move, mix) {
+    if (!mix || !move || !move.proposed_percents) return;
+    // open What if, set mix + percents + AC delta
+    hideForms();
+    var f = $("wifform");
+    if (f) f.hidden = false;
+    document.querySelectorAll(".pchip").forEach(function (c) {
+      c.classList.toggle("active", c.getAttribute("data-form") === "wifform");
+    });
+    loadMixes();
+    // select mix by id
+    var sel = $("wi-mix");
+    if (sel && MIXES) {
+      for (var i = 0; i < MIXES.length; i++) {
+        if (MIXES[i].id === mix.id) { sel.value = String(i); break; }
+      }
+      wiRenderBins(selectedMix("wi-mix"));
+    }
+    setTimeout(function () {
+      document.querySelectorAll("#wifform .wi-pct").forEach(function (inp, i) {
+        if (move.proposed_percents[i] != null) inp.value = String(move.proposed_percents[i]);
+      });
+      wiUpdateSum();
+      if (move.proposed_ac_delta != null && $("wi-ac-delta"))
+        $("wi-ac-delta").value = String(move.proposed_ac_delta);
+      if ($("wi-run")) $("wi-run").click();
+    }, 80);
+  }
+
+  $("mf-suggest").addEventListener("click", function () {
+    var mix = selectedMix("mf-mix");
+    var va = parseFloat($("mf-va").value);
+    if (!mix) {
+      $("mf-moves").hidden = false;
+      $("mf-moves").innerHTML = '<div class="errbox" style="margin:0">⚠ Pick a mix design first.</div>';
+      return;
+    }
+    if (!Number.isFinite(va)) {
+      $("mf-moves").hidden = false;
+      $("mf-moves").innerHTML = '<div class="errbox" style="margin:0">⚠ Enter sample air voids (Va %) so moves can aim at the design target.</div>';
+      return;
+    }
+    var pcts = mfCollectBinPercents(mix);
+    var payload = {
+      calc: "bailey",
+      action: "suggest_moves",
+      jmf_id: mix.id,
+      sample_va: va,
+      current_percents: pcts,
+    };
+    if (mix.va != null) payload.design_va = mix.va;
+    if (mix.ac != null) payload.design_ac = mix.ac;
+    var sac = parseFloat($("mf-ac").value);
+    if (Number.isFinite(sac)) payload.sample_ac = sac;
+
+    var btn = $("mf-suggest");
+    btn.disabled = true; btn.textContent = "Searching…";
+    fetch(ENDPOINT, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) })
+      .then(function (res) { return res.json(); })
+      .then(function (r) {
+        mfMovesLast = { r: r, mix: mix, payload: payload };
+        renderDiagnosis("mf-diag", r.diagnosis);
+        renderSuggestedMoves("mf-moves", r, {
+          applyId: true,
+          onApply: function (move) { applyMoveToWhatIf(move, mix); },
+        });
+      })
+      .catch(function (e) {
+        $("mf-moves").hidden = false;
+        $("mf-moves").innerHTML = '<div class="errbox" style="margin:0">⚠ ' + esc(String(e.message || e)) + "</div>";
+      })
+      .finally(function () { btn.disabled = false; btn.textContent = "Suggest moves"; });
+  });
+
+  $("mf-go").addEventListener("click", function () {
+    var v = function(id){ return $(id).value.trim(); };
+    var lines = ["Mix change help needed."];
+    var head = [];
+    var mix = selectedMix("mf-mix");
+    if (mix) head.push("Mix design: " + mix.name);
+    else if ($("mf-mix").value === "other" && v("mf-mix-other")) head.push("Mix design: " + v("mf-mix-other"));
+    if (v("mf-tons")) head.push("Tons into production: " + v("mf-tons"));
+    if (head.length) lines.push(head.join(" | "));
+    if (mix) {
+      var tgt = [];
+      if (mix.gmm != null) tgt.push("Gmm " + mix.gmm);
+      if (mix.ac != null) tgt.push("AC " + mix.ac + "%");
+      if (mix.va != null) tgt.push("Va " + mix.va + "%");
+      if (mix.rap != null) tgt.push("RAP " + mix.rap + "%");
+      if (tgt.length) lines.push("Design targets (from the " + mix.name + " mix pack): " + tgt.join(", "));
+    }
+    if (v("mf-basis")) lines.push("Sample basis: " + v("mf-basis"));
+    var res = [];
+    if (v("mf-va")) res.push("Va " + v("mf-va") + "%");
+    if (v("mf-vma")) res.push("VMA " + v("mf-vma") + "%");
+    if (v("mf-gmm")) res.push("Gmm " + v("mf-gmm"));
+    if (v("mf-gmb")) res.push("Gmb " + v("mf-gmb"));
+    if (v("mf-ac")) res.push("AC (burn-off) " + v("mf-ac") + "%");
+    if (res.length) lines.push("Results: " + res.join(", "));
+    var sieves = [];
+    document.querySelectorAll("#mixform .sv").forEach(function (s) {
+      if (s.value.trim()) sieves.push(s.getAttribute("data-sieve") + ": " + s.value.trim());
+    });
+    if (sieves.length) lines.push("Burn-off gradation (% passing): " + sieves.join(", "));
+    var bins = [];
+    var binObjs = [];
+    document.querySelectorAll("#mixform .binrow").forEach(function (r, i) {
+      var pct = r.querySelector(".bin-pct").value.trim();
+      var typ = r.querySelector(".bin-type").value.trim();
+      var loc = r.querySelector(".bin-loc").value.trim();
+      if (!pct && !typ && !loc) return;
+      bins.push((pct ? pct + "%" : "?%") + (typ ? " " + typ : "") + (loc ? " (" + loc + ")" : ""));
+      var code = null;
+      if (mix && mix.bins && mix.bins[i] && mix.bins[i].material_code != null) code = mix.bins[i].material_code;
+      binObjs.push({ percent: parseFloat(pct), agg_type: typ, material_code: code });
+    });
+    if (bins.length) lines.push("Current bin splits: " + bins.join(", "));
+    if (v("mf-issue")) lines.push("What's happening: " + v("mf-issue"));
+    // Attach verified suggest_moves if we already ran them
+    if (mfMovesLast && mfMovesLast.r && mfMovesLast.r.moves && mfMovesLast.r.moves.length && mfMovesLast.mix === mix) {
+      lines.push("I already ran bailey_calc action=suggest_moves. USE these verified options (do not invent a different split):");
+      mfMovesLast.r.moves.forEach(function (m) {
+        var ch = (m.bin_changes || []).map(function (c) {
+          return c.agg_type + " " + c.from + "%→" + c.to + "%";
+        }).join("; ");
+        lines.push(
+          "  #" + m.rank + " " + m.label +
+          (m.predicted_va != null ? " → pred Va " + m.predicted_va + "%" : "") +
+          (ch ? " [" + ch + "]" : "") +
+          (m.proposed_ac_delta ? " AC Δ " + m.proposed_ac_delta : "")
+        );
+      });
+      if (mfMovesLast.r.diagnosis && mfMovesLast.r.diagnosis.note)
+        lines.push("Diagnosis: " + mfMovesLast.r.diagnosis.note);
+    }
+    lines.push("What changes should I make, if any? Prefer the #1 verified move for Do now unless you have a reason to pick another.");
+
+    function finishMixPrompt(fp) {
+      if (fp && fp.summary) {
+        lines.splice(1, 0, "FINGERPRINT: " + fp.summary + (fp.agent_instruction ? " — " + fp.agent_instruction : ""));
+      }
+      composeToInput(lines.join("\n"));
+    }
+    // Server-side Rule 2b gate when we know which design + plant bins
+    if (mix && mix.id && binObjs.length) {
+      var go = $("mf-go");
+      if (go) { go.disabled = true; go.textContent = "Checking design…"; }
+      fetch(ENDPOINT, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          action: "fingerprint",
+          jmf_id: mix.id,
+          design_name: mix.name,
+          bins: binObjs,
+          rap_pct: mix.rap != null ? mix.rap : null,
+        }),
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (fp) { finishMixPrompt(fp); })
+        .catch(function () { finishMixPrompt(null); })
+        .finally(function () {
+          if (go) { go.disabled = false; go.textContent = "Add to message"; }
+        });
+      return;
+    }
+    finishMixPrompt(null);
+  });
+  function lfUpdateCalibHint() {
+    var el = $("lf-calib");
+    if (!el) return;
+    var p = parseFloat($("lf-pred-va").value), a = parseFloat($("lf-act-va").value);
+    if (!Number.isFinite(p) || !Number.isFinite(a)) { el.hidden = true; return; }
+    var err = Math.round((a - p) * 100) / 100;
+    el.hidden = false;
+    el.textContent = "Calibration: actual − predicted = " + (err > 0 ? "+" : "") + err +
+      " Va pts (" + (err > 0 ? "app under-predicted Va" : err < 0 ? "app over-predicted Va" : "exact match") + ").";
+  }
+  ["lf-pred-va", "lf-act-va"].forEach(function (id) {
+    if ($(id)) $(id).addEventListener("input", lfUpdateCalibHint);
+  });
+  $("lf-save").addEventListener("click", function () {
+    var entry = $("lf-entry").value.trim();
+    var pred = parseFloat($("lf-pred-va").value);
+    var act = parseFloat($("lf-act-va").value);
+    var mix = $("lf-mix").value.trim();
+    if (!entry && !(Number.isFinite(pred) || Number.isFinite(act))) {
+      $("lf-entry").focus();
+      return;
+    }
+    var data = { mix: mix || undefined, contract: $("lf-cid").value.trim() || undefined };
+    if (Number.isFinite(pred)) data.predicted_va = pred;
+    if (Number.isFinite(act)) { data.actual_va = act; data.va = act; }
+    if (Number.isFinite(pred) && Number.isFinite(act)) data.kind = "result";
+    else if (Number.isFinite(pred)) data.kind = "prediction";
+    else if (Number.isFinite(act)) data.kind = "result";
+    var text = entry;
+    if (!text) {
+      if (Number.isFinite(pred) && Number.isFinite(act))
+        text = "Calibration: predicted Va " + pred + "% → actual " + act + "% (err " +
+          (Math.round((act - pred) * 100) / 100) + ")";
+      else if (Number.isFinite(act)) text = "Lab Va " + act + "%";
+      else text = "Prediction Va " + pred + "%";
+      if (mix) text += " · " + mix;
+    }
+    var btn = $("lf-save");
+    btn.disabled = true; btn.textContent = "Saving…";
+    plantLogWrite({
+      entry: text,
+      tags: [mix, data.kind, $("lf-cid").value.trim()].filter(Boolean),
+      data: data,
+    }).then(function (res) {
+      btn.textContent = res && res.persisted ? "Saved ✓" : "Session only ✓";
+      lfUpdateCalibHint();
+      setTimeout(function () { btn.disabled = false; btn.textContent = "Save to plant log"; }, 1500);
+    }).catch(function () {
+      btn.disabled = false; btn.textContent = "Save to plant log";
+    });
+  });
+  $("lf-go").addEventListener("click", function () {
+    var entry = $("lf-entry").value.trim();
+    var pred = parseFloat($("lf-pred-va").value);
+    var act = parseFloat($("lf-act-va").value);
+    if (!entry && !(Number.isFinite(pred) || Number.isFinite(act))) { $("lf-entry").focus(); return; }
+    var ctx = [];
+    if ($("lf-mix").value.trim()) ctx.push("Mix: " + $("lf-mix").value.trim());
+    if ($("lf-cid").value.trim()) ctx.push("Contract: " + $("lf-cid").value.trim());
+    if (Number.isFinite(pred)) ctx.push("Predicted Va " + pred + "%");
+    if (Number.isFinite(act)) ctx.push("Actual Va " + act + "%");
+    if (Number.isFinite(pred) && Number.isFinite(act))
+      ctx.push("Error (actual−pred) " + (Math.round((act - pred) * 100) / 100));
+    var msg = entry
+      ? "Log this in the plant log: " + entry + (ctx.length ? " (" + ctx.join(", ") + ")" : "")
+      : "Log this calibration in the plant log: " + ctx.join("; ");
+    if (Number.isFinite(pred) && Number.isFinite(act))
+      msg += " Use plant_log write with data.kind=result, predicted_va and actual_va.";
+    composeToInput(msg);
+  });
+
+  // shared: append "Mix design" + design-targets lines from a mix-select
+  function pushMixHead(head, lines, selId, otherId) {
+    var mix = selectedMix(selId);
+    if (mix) head.push("Mix design: " + mix.name);
+    else if ($(selId).value === "other" && $(otherId).value.trim()) head.push("Mix design: " + $(otherId).value.trim());
+    return mix;
+  }
+  function pushTargets(lines, mix) {
+    if (!mix) return;
+    var tgt = [];
+    if (mix.gmm != null) tgt.push("Gmm " + mix.gmm);
+    if (mix.ac != null) tgt.push("AC " + mix.ac + "%");
+    if (mix.va != null) tgt.push("Va " + mix.va + "%");
+    if (mix.rap != null) tgt.push("RAP " + mix.rap + "%");
+    if (tgt.length) lines.push("Design targets (from the " + mix.name + " mix pack): " + tgt.join(", "));
+  }
+  // free-text "Other" toggle for the pay-factor mix-select
+  $("pf-mix").addEventListener("change", function () {
+    $("pf-mix-other").style.display = $("pf-mix").value === "other" ? "block" : "none";
+  });
+
+  // ---------- JMF comparison (design curve vs today's stockpiles) ----------
+  var jdLast = null;
+  $("jd-mix").addEventListener("change", function () {
+    $("jd-run").disabled = !selectedMix("jd-mix");
+    $("jd-ask").disabled = true;
+    $("jd-out").hidden = true;
+    jdLast = null;
+  });
+  function jdRender(r, mix) {
+    var out = $("jd-out");
+    out.hidden = false;
+    if (r.error && r.status !== "incomplete") {
+      out.innerHTML = '<div class="errbox" style="margin:0">⚠ ' + esc(r.error) + "</div>";
+      return;
+    }
+    if (r.status === "incomplete") {
+      out.innerHTML = '<div class="errbox" style="margin:0">⚠ ' + esc(r.note || r.error || "Can't compare yet.") +
+        ((r.missing_gradation || []).length ? "<br><small>Missing sieves for: " +
+          esc(r.missing_gradation.map(function (m) { return m.agg_type || m.material_code; }).join(", ")) + "</small>" : "") + "</div>";
+      return;
+    }
+    var vaT = r.design_va_target != null ? Number(r.design_va_target) : 3.5;
+    var ve = r.voids_estimate || {};
+    var s = r.suggestion || {};
+    var needAction = r.action_needed === true || s.changed === true;
+    var today = ve.at_design_bins_today || {};
+    var after = ve.after_recovery_bins || {};
+    var dVa = today.approx_delta_va_vs_jmf != null ? Number(today.approx_delta_va_vs_jmf) : null;
+    var todayVa = today.predicted_va != null ? Number(today.predicted_va) : null;
+    if (!Number.isFinite(todayVa) && Number.isFinite(dVa)) todayVa = Math.round((vaT + dVa) * 100) / 100;
+    var afterD = after.approx_delta_va_vs_jmf != null ? Number(after.approx_delta_va_vs_jmf) : null;
+    var afterVa = after.predicted_va != null ? Number(after.predicted_va) : null;
+    if (!Number.isFinite(afterVa) && Number.isFinite(afterD)) afterVa = Math.round((vaT + afterD) * 100) / 100;
+
+    var sub = needAction
+      ? ("recover JMF → Va " + fmt(vaT, 1) + "%")
+      : ("hold design bins · hypo Va " + (Number.isFinite(todayVa) ? fmt(todayVa, 2) + "%" : "OK"));
+    var h = '<div class="rcard"><div class="rhead"><span class="rtitle">' + esc(r.mix_name) +
+      '</span><span class="rsub">' + esc(sub) + "</span></div>";
+
+    // Bottom line first — what the tech should do
+    if (!s.ok) {
+      h += '<div class="errbox" style="margin:8px 0">' + esc(s.reason || "No suggestion available.") + "</div>";
+    } else if (!needAction) {
+      var confHold = ve.confidence || today.confidence;
+      h += '<div class="verdict good" style="margin:8px 0"><strong>Hold design bins</strong> — no change. ' + confHtml(confHold) + "</div>";
+      h += '<div class="bcm">Hypo Va with today\'s piles at design %: <b>' +
+        (Number.isFinite(todayVa) ? fmt(todayVa, 2) + "%" : "n/a") +
+        "</b> &nbsp;·&nbsp; JMF target <b>" + fmt(vaT, 1) + "%</b>";
+      if (Number.isFinite(dVa))
+        h += ' &nbsp;·&nbsp; Δ ' + (dVa > 0 ? "+" : "") + fmt(dVa, 2);
+      h += "</div>";
+      if (confHold && confHold.summary) h += '<div class="bcm">' + esc(confHold.summary) + "</div>";
+      h += '<div class="bcm">Today\'s piles reproduce the JMF curve at design %. Do not polish bins or move RAP.</div>';
+    } else {
+      var confNeed = (after.confidence || ve.confidence || today.confidence);
+      h += '<div class="verdict caution" style="margin:8px 0"><strong>Recovery needed</strong> — piles off JMF curve / design Va. ' +
+        confHtml(confNeed) + "</div>";
+      h += '<div class="bcm">Hypo Va @ design bins: <b>' +
+        (Number.isFinite(todayVa) ? fmt(todayVa, 2) + "%" : "n/a") +
+        "</b> &nbsp;→&nbsp; target <b>" + fmt(vaT, 1) + "%</b>";
+      if (Number.isFinite(afterVa))
+        h += ' &nbsp;·&nbsp; after recovery <b>' + fmt(afterVa, 2) + "%</b>";
+      h += "</div>";
+      if (confNeed && confNeed.summary) h += '<div class="bcm">' + esc(confNeed.summary) + "</div>";
+    }
+
+    // Gradation table (always useful)
+    h += '<div class="bch" style="margin-top:10px">Gradation — design vs today vs proposed</div>';
+    // Design vs today vs what the proposed bins actually produce. No tolerance
+    // columns, banners or row flags: the optimizer targets design Va, so a
+    // minor-change band is not what a tech is deciding on here.
+    var hasHypo = (r.comparison || []).some(function (c) { return c.hypo_new_jmf != null; });
+    h += '<table><thead><tr><th>Sieve</th><th class="num">JMF</th><th class="num">Today</th>' +
+      (hasHypo ? '<th class="num">New JMF</th><th class="num">vs JMF</th>' : '<th class="num">Diff</th>') +
+      "</tr></thead><tbody>";
+    (r.comparison || []).forEach(function (c) {
+      h += "<tr><td>" + esc(c.sieve) +
+        '</td><td class="num">' + fmt(c.jmf, 1) + '</td><td class="num">' + fmt(c.now, 1) + "</td>";
+      if (hasHypo) {
+        var d = c.hypo_vs_design;
+        h += '<td class="num"><b>' + (c.hypo_new_jmf == null ? "—" : fmt(c.hypo_new_jmf, 1)) + "</b></td>" +
+          '<td class="num">' + (d == null ? "" : (d > 0 ? "+" : "") + fmt(d, 1)) + "</td>";
+      } else {
+        h += '<td class="num">' + (c.deviation > 0 ? "+" : "") + fmt(c.deviation, 1) + "</td>";
+      }
+      h += "</tr>";
+    });
+    h += "</tbody></table>";
+    if (hasHypo)
+      h += '<div class="rnote"><b>New JMF</b> = the curve you\'d actually be running under the proposed bins below.</div>';
+    if (r.stockpile_freshness && /STALE/i.test(r.stockpile_freshness))
+      h += '<div class="rnote" style="color:var(--flag-text)">⚠ ' + esc(r.stockpile_freshness) + "</div>";
+    if ((r.missing_gradation || []).length)
+      h += '<div class="rnote">Only ' + fmt(r.percent_covered, 0) + '% of bins have stockpile sieves — today curve omits ' +
+        esc(r.missing_gradation.map(function (m) { return m.agg_type || m.material_code; }).join(", ")) + ".</div>";
+    h += "</div>";
+
+    // Recovery table only when a real move is recommended
+    if (needAction && s.changed && s.changes && s.changes.length) {
+      h += '<div class="rcard"><div class="rhead"><span class="rtitle">Recovery bins</span><span class="rsub">Va first · curve second</span></div>';
+      h += '<table><thead><tr><th>Bin</th><th class="num">Design</th><th class="num">Recovery</th><th class="num">Move</th></tr></thead><tbody>';
+      s.changes.forEach(function (c) {
+        h += "<tr><td>" + esc(c.agg_type || "") + (c.producer ? ' <span style="color:var(--muted)">· ' + esc(String(c.producer).split("@")[0].trim()) + "</span>" : "") +
+          '</td><td class="num">' + c.from + '%</td><td class="num"><strong>' + c.to + '%</strong></td><td class="num" style="color:' +
+          (c.delta > 0 ? "var(--ok-text)" : "var(--err-text)") + '">' + (c.delta > 0 ? "+" : "") + c.delta + "</td></tr>";
+      });
+      h += "</tbody></table>";
+      var va0 = s.hypo_va_before != null ? s.hypo_va_before : todayVa;
+      var va1 = s.hypo_va_after != null ? s.hypo_va_after : afterVa;
+      if (va0 != null || va1 != null)
+        h += '<div class="bcm">Hypo Va: <b>' + (va0 != null ? fmt(va0, 2) + "%" : "?") +
+          "</b> → <b>" + (va1 != null ? fmt(va1, 2) + "%" : "?") + "</b> (target " + fmt(vaT, 1) + "%) " +
+          confHtml(after.confidence || ve.confidence) + "</div>";
+      if (s.proposed_ac_delta != null)
+        h += '<div class="bcm">Also consider AC <b>' + (s.proposed_ac_delta > 0 ? "+" : "") + s.proposed_ac_delta +
+          " pt</b>" + (s.hypo_va_with_ac != null ? " → hypo Va ~<b>" + fmt(s.hypo_va_with_ac, 2) + "%</b>" : "") +
+          " (ACVC; lab judgment)</div>";
+      if (s.points_moved != null)
+        h += '<div class="bcm">' + s.points_moved + " pts re-proportioned" +
+          (s.before && s.before.curve_rms_abs != null && s.after && s.after.curve_rms_abs != null
+            ? " · curve RMS " + fmt(s.before.curve_rms_abs, 2) + " → " + fmt(s.after.curve_rms_abs, 2) + " pts"
+            : "") + "</div>";
+      if (s.verdict) h += '<div class="bcm">' + esc(s.verdict) + "</div>";
+      if (s.still_out_after && s.still_out_after.length)
+        h += '<div class="bcm" style="color:var(--flag-text)">Sieve flag (info): ' + esc(s.still_out_after.join(", ")) +
+          " still outside minor-change band — often dust/product; Va recovery can still help.</div>";
+      if (s.rap_after_pct != null && s.rap_before_pct != null && s.rap_after_pct !== s.rap_before_pct)
+        h += '<div class="bcm" style="color:var(--flag-text)">⚠ RAP ' + s.rap_before_pct + "% → " + s.rap_after_pct + "% (meters binder)</div>";
+      h += '<button type="button" class="ghost jd-log-pred" style="width:auto;padding:6px 12px;font-size:12px;margin-top:6px">Log recovery prediction</button>';
+      h += '<div id="jd-logmsg" class="bcm" hidden></div>';
+      h += '<div class="bcm">Advisory — confirm next sample. Log prediction, then log actual Va to calibrate.</div>';
+      h += "</div>";
+    }
+    out.innerHTML = h;
+    var logBtn = out.querySelector(".jd-log-pred");
+    if (logBtn && needAction) {
+      logBtn.addEventListener("click", function () {
+        logBtn.disabled = true;
+        logBtn.textContent = "Saving…";
+        var conf = (after.confidence || ve.confidence || {});
+        var pred = Number.isFinite(afterVa) ? afterVa : (s.hypo_va_after != null ? s.hypo_va_after : null);
+        var binsNote = (s.changes || []).map(function (c) {
+          return (c.agg_type || "?") + " " + c.from + "→" + c.to;
+        }).join("; ");
+        plantLogWrite({
+          entry: "JMF recovery prediction: " + (r.mix_name || "mix") + " → Va " + pred + "%" +
+            (conf.label ? " [" + conf.label + " confidence]" : "") +
+            (binsNote ? " · " + binsNote : ""),
+          tags: [r.mix_name || "", "prediction", "jmf_drift"].filter(Boolean),
+          data: {
+            kind: "prediction",
+            mix: r.mix_name,
+            jmf_id: r.jmf_id,
+            predicted_va: pred,
+            design_va: vaT,
+            confidence: conf.level,
+            confidence_score: conf.score,
+            source: "jmf_drift",
+            bins_note: binsNote,
+          },
+        }).then(function (res) {
+          var msg = $("jd-logmsg");
+          if (msg) {
+            msg.hidden = false;
+            msg.textContent = res && res.persisted
+              ? "Logged. After next plant sample: Log it with actual Va + predicted " + pred + "%."
+              : "Logged for this session only.";
+          }
+          logBtn.textContent = "Logged ✓";
+        }).catch(function (e) {
+          logBtn.disabled = false;
+          logBtn.textContent = "Log recovery prediction";
+        });
+      });
+    }
+  }
+  $("jd-run").addEventListener("click", function () {
+    var mix = selectedMix("jd-mix");
+    if (!mix) return;
+    $("jd-run").disabled = true; $("jd-run").textContent = "Comparing…";
+    fetch(ENDPOINT, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ calc: "bailey", action: "jmf_drift", jmf_id: mix.id }),
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (r) { jdLast = { r: r, mix: mix }; jdRender(r, mix); $("jd-ask").disabled = !!r.error && r.status !== "incomplete"; })
+      .catch(function () {
+        $("jd-out").hidden = false;
+        $("jd-out").innerHTML = '<div class="errbox" style="margin:0">⚠ Couldn\'t reach the calculator.</div>';
+      })
+      .finally(function () { $("jd-run").disabled = false; $("jd-run").textContent = "Compare"; });
+  });
+  $("jd-ask").addEventListener("click", function () {
+    if (!jdLast || !jdLast.r) return;
+    var r = jdLast.r, lines = ["JMF recovery — get back to the original approved mix design."];
+    lines.push("Mix design: " + jdLast.mix.name);
+    lines.push("GOAL: re-proportion bins on TODAY's stockpiles to reproduce the original JMF gradation as closely as plant rules allow. The JMF was designed for ~" +
+      (r.design_va_target != null ? r.design_va_target : 3.5) + "% air voids — matching that curve is how we get voids back toward design (binder held).");
+    lines.push("I already ran bailey_calc action=jmf_drift. Use these numbers; do not re-derive.");
+    if (r.voids_estimate) {
+      var ve = r.voids_estimate;
+      var t = ve.at_design_bins_today || {};
+      var a = ve.after_recovery_bins || {};
+      lines.push("Hypothetical Va (Bailey packing RoT): JMF anchor " + (ve.design_va_target != null ? ve.design_va_target : 3.5) + "%" +
+        (t.predicted_va != null ? "; today @ design bins ≈ " + t.predicted_va + "%" : "") +
+        (a.predicted_va != null ? "; after recovery bins ≈ " + a.predicted_va + "%" : "") + ".");
+      if (t.interpretation) lines.push("Today: " + t.interpretation);
+      if (a.interpretation) lines.push("Recovery: " + a.interpretation);
+    }
+    lines.push("Gradation drift: " + (r.drift_summary || ""));
+    if (r.drift_score) lines.push("Curve off-target score (fraction of tol): rms " + r.drift_score.rms_of_tolerance + ", worst sieve " + r.drift_score.worst_sieve_fraction);
+    var s = r.suggestion || {};
+    if (s.changed) lines.push("Computed recovery bins: " + s.changes.map(function (c) { return (c.delta > 0 ? "+" : "") + c.delta + " " + c.agg_type + " (" + c.from + "%→" + c.to + "%)"; }).join(", ") +
+      " — curve match " + s.before.rms_of_tolerance + " → " + s.after.rms_of_tolerance);
+    if (s.verdict) lines.push("Recovery verdict: " + s.verdict);
+    if (r.stockpile_freshness) lines.push("Stockpile freshness: " + r.stockpile_freshness);
+    if (r.action_needed === false || (r.suggestion && r.suggestion.changed === false)) {
+      lines.push("RECOMMENDATION FROM CALCULATOR: HOLD design bins — no recovery move (already in band / recovery would not help Va).");
+      lines.push("Confirm in plain language for the tech: no bin change. Only act if a plant sample is out of spec.");
+    } else {
+      lines.push("Give Do now / Verify / Watch aimed at recovering the original JMF (and design Va). Prefer the computed recovery bins if they help; if material itself moved and bins can't fix it, say revised JMF / product change is needed. Quote the hypo Va numbers. Do not move RAP unless the recovery table says so.");
+    }
+    composeToInput(lines.join("\n"));
+  });
+
+  // ---------- Plant history ----------
+  var phMix = null;
+  function phDesig(name) {
+    var p = String(name || "").split(/\s+/);
+    return p.length > 1 ? p[1] : ""; // "0.38A", "No.4B", ...
+  }
+  $("ph-mix").addEventListener("change", function () {
+    phMix = selectedMix("ph-mix");
+    $("ph-go").disabled = !phMix;
+    if (!phMix) {
+      $("ph-feed").innerHTML = '<div class="ctempty">Pick a mix to see what\'s been logged about it — results, changes, decisions.</div>';
+      return;
+    }
+    $("ph-feed").innerHTML = '<div class="ctempty">Loading history…</div>';
+    fetch(ENDPOINT + "?history=1&jmf=" + encodeURIComponent(phMix.id) + "&desig=" + encodeURIComponent(phDesig(phMix.name)))
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        var e = d.entries || [];
+        if (!e.length) {
+          $("ph-feed").innerHTML = '<div class="ctempty">Nothing logged yet for ' + esc(phMix.name) + ". Entries land here when you use Log it or the agent records a result.</div>";
+          return;
+        }
+        var h = '<div class="ctcard"><div class="ctsec">Logged for ' + esc(phMix.name) + " (" + e.length + ")</div>";
+        e.forEach(function (en) {
+          var when = en.ts ? new Date(en.ts).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "";
+          h += '<div class="ctrow" style="margin-bottom:6px"><span class="k">' + esc(when) + "</span>" + esc(en.text) +
+            (en.tags && en.tags.length ? ' <span style="color:var(--muted);font-size:11px">[' + esc(en.tags.join(", ")) + "]</span>" : "") + "</div>";
+        });
+        h += "</div>";
+        $("ph-feed").innerHTML = h;
+      })
+      .catch(function () { $("ph-feed").innerHTML = '<div class="ctempty">Couldn\'t load the plant log.</div>'; });
+  });
+  $("ph-go").addEventListener("click", function () {
+    if (!phMix) return;
+    var q = $("ph-q").value.trim();
+    var lines = ["Plant history question."];
+    lines.push("Mix design: " + phMix.name);
+    lines.push("First read the plant log for everything recorded about this mix (search by its name and " + phDesig(phMix.name) + "), then answer using that history as context.");
+    lines.push(q ? "Question: " + q : "Question: Summarize how this mix has been running — results, changes we made, what worked and what didn't.");
+    composeToInput(lines.join("\n"));
+  });
+
+
+  // ---------- What if (predict bin move) ----------
+  var wiLast = null;
+  function wiRenderBins(mix) {
+    var wrap = $("wi-bins-wrap");
+    if (!mix || !mix.bins || !mix.bins.length) {
+      wrap.innerHTML = '<div class="ctempty">Pick a mix to load design bin percentages.</div>';
+      $("wi-run").disabled = true;
+      $("wi-reset").disabled = true;
+      if ($("wi-suggest")) $("wi-suggest").disabled = true;
+      $("wi-sum").hidden = true;
+      return;
+    }
+    var h = '<table class="wi-bins"><thead><tr><th>Aggregate</th><th>Source</th><th class="num">Design %</th><th class="num">Proposed %</th></tr></thead><tbody>';
+    mix.bins.forEach(function (b, i) {
+      h += "<tr data-i=\"" + i + "\">" +
+        "<td>" + esc(b.type || "") + (b.material_code != null ? ' <span style="color:var(--muted);font-size:11px">(' + esc(String(b.material_code)) + ")</span>" : "") + "</td>" +
+        "<td>" + esc(b.loc || b.producer || "") + "</td>" +
+        '<td class="num des">' + (b.pct != null ? b.pct : "—") + "</td>" +
+        '<td class="num"><input class="wi-pct" data-i="' + i + '" inputmode="decimal" value="' + (b.pct != null ? esc(String(b.pct)) : "") + '"></td></tr>';
+    });
+    h += "</tbody></table>";
+    wrap.innerHTML = h;
+    $("wi-run").disabled = false;
+    $("wi-reset").disabled = false;
+    if ($("wi-suggest")) $("wi-suggest").disabled = false;
+    $("wi-ask").disabled = true;
+    $("wi-out").hidden = true;
+    if ($("wi-moves")) $("wi-moves").hidden = true;
+    wiLast = null;
+    document.querySelectorAll("#wifform .wi-pct").forEach(function (inp) {
+      inp.addEventListener("input", wiUpdateSum);
+    });
+    wiUpdateSum();
+  }
+  function wiUpdateSum() {
+    var sum = 0, n = 0;
+    document.querySelectorAll("#wifform .wi-pct").forEach(function (inp) {
+      var v = parseFloat(inp.value);
+      if (Number.isFinite(v)) { sum += v; n++; }
+    });
+    var el = $("wi-sum");
+    if (!n) { el.hidden = true; return; }
+    el.hidden = false;
+    var ok = Math.abs(sum - 100) <= 0.6;
+    el.className = "wi-sum" + (ok ? "" : " bad");
+    el.textContent = "Proposed bins sum to " + (Math.round(sum * 10) / 10) + "%" + (ok ? "" : " — should be ~100%");
+  }
+  function wiCollectPercents() {
+    var out = [];
+    document.querySelectorAll("#wifform .wi-pct").forEach(function (inp) {
+      out.push(parseFloat(inp.value));
+    });
+    return out;
+  }
+  $("wi-mix").addEventListener("change", function () {
+    wiRenderBins(selectedMix("wi-mix"));
+  });
+  $("wi-reset").addEventListener("click", function () {
+    var m = selectedMix("wi-mix");
+    if (!m) return;
+    wiRenderBins(m);
+  });
+  function renderPredict(r) {
+    var h = "";
+    if (r.error) {
+      $("wi-out").innerHTML = '<div class="errbox" style="margin:0">⚠ ' + esc(String(r.error)) + "</div>";
+      $("wi-out").hidden = false;
+      return;
+    }
+    var v = r.verdict || "caution";
+    h += '<div class="verdict ' + esc(v) + '"><strong>' +
+      (v === "good" ? "Looks good" : v === "bad" ? "Don't run this" : v === "neutral" ? "Small move" : "Caution") +
+      "</strong>" + esc(r.verdict_text || "") + "</div>";
+
+    var pred = r.prediction || {};
+    var confP = r.confidence || pred.confidence;
+    h += '<div class="bch">Predicted voids (Bailey RoT) ' + confHtml(confP) + "</div>";
+    if (confP && confP.summary) h += '<div class="bcm">' + esc(confP.summary) + "</div>";
+    h += '<table class="wi-bins"><tbody>';
+    if (pred.base_va_used != null || r.base_va_used != null)
+      h += '<tr><td>Starting Va</td><td class="num">' + (pred.base_va_used != null ? pred.base_va_used : r.base_va_used) + "%</td></tr>";
+    if (pred.approx_delta_vma != null)
+      h += '<tr><td>≈ ΔVMA (packing)</td><td class="num">' + (pred.approx_delta_vma > 0 ? "+" : "") + pred.approx_delta_vma + "%</td></tr>";
+    if (pred.approx_delta_va_from_ac != null && pred.approx_delta_va_from_ac !== 0)
+      h += '<tr><td>≈ ΔVa from AC</td><td class="num">' + (pred.approx_delta_va_from_ac > 0 ? "+" : "") + pred.approx_delta_va_from_ac + "%</td></tr>";
+    if (pred.approx_delta_va_total != null)
+      h += '<tr><td><b>≈ ΔVa total</b></td><td class="num"><b>' + (pred.approx_delta_va_total > 0 ? "+" : "") + pred.approx_delta_va_total + "%</b></td></tr>";
+    if (pred.predicted_va != null)
+      h += '<tr><td><b>Predicted Va</b></td><td class="num"><b>' + pred.predicted_va + "%</b></td></tr>";
+    if (r.design_va != null)
+      h += '<tr><td>Design Va target</td><td class="num">' + r.design_va + "%</td></tr>";
+    h += "</tbody></table>";
+    h += '<div class="bcm">' + esc((pred.method || "").slice(0, 220)) + "</div>";
+
+    if (r.plant_rules) {
+      var pr = r.plant_rules;
+      h += '<div class="bch">Plant bin rules</div>';
+      if (pr.ok) h += '<span class="okpill">OK — min 10% / sand ≤15%</span>';
+      else {
+        h += '<span class="flag">Rule break</span>';
+        var viol = (pr.check && pr.check.violations) || [];
+        viol.forEach(function (x) { h += '<div class="bcm">' + esc(x.message || "") + "</div>"; });
+      }
+    }
+
+    if (r.bin_table && r.bin_table.length) {
+      h += '<div class="bch">Bin changes</div><table class="wi-bins"><thead><tr><th>Aggregate</th><th class="num">Design</th><th class="num">Proposed</th><th class="num">Δ</th></tr></thead><tbody>';
+      r.bin_table.forEach(function (row) {
+        if (row.delta_pct == null || row.delta_pct === 0) return;
+        h += "<tr><td>" + esc(row.agg_type || "") + '</td><td class="num">' + row.design_pct +
+          '</td><td class="num">' + row.proposed_pct + '</td><td class="num">' +
+          (row.delta_pct > 0 ? "+" : "") + row.delta_pct + "</td></tr>";
+      });
+      h += "</tbody></table>";
+    }
+
+    var bl = r.blend || {};
+    if (bl.current && bl.current.ratios && bl.proposed && bl.proposed.ratios) {
+      var cr = bl.current.ratios, prr = bl.proposed.ratios;
+      h += '<div class="bch">Bailey ratios (stockpile-weighted)</div><table class="wi-bins"><thead><tr><th></th><th class="num">Design bins</th><th class="num">Proposed</th></tr></thead><tbody>';
+      h += '<tr><td>CA</td><td class="num">' + (cr.ca_ratio != null ? cr.ca_ratio : "—") + '</td><td class="num">' + (prr.ca_ratio != null ? prr.ca_ratio : "—") + "</td></tr>";
+      h += '<tr><td>FAc</td><td class="num">' + (cr.fac_ratio != null ? cr.fac_ratio : "—") + '</td><td class="num">' + (prr.fac_ratio != null ? prr.fac_ratio : "—") + "</td></tr>";
+      h += '<tr><td>FAf</td><td class="num">' + (cr.faf_ratio != null ? cr.faf_ratio : "—") + '</td><td class="num">' + (prr.faf_ratio != null ? prr.faf_ratio : "—") + "</td></tr>";
+      h += "</tbody></table>";
+    }
+    if (bl.current && bl.current.missing_gradation && bl.current.missing_gradation.length) {
+      h += '<div class="bcm">Missing stockpile sieves for: ' +
+        bl.current.missing_gradation.map(function (m) { return esc(m.agg_type || "?"); }).join(", ") +
+        " — prediction is partial.</div>";
+    }
+
+    h += '<div class="bcm" style="margin-top:8px">Advisory estimate — not a lab result. Confirm with the next sample.</div>';
+    $("wi-out").innerHTML = h;
+    $("wi-out").hidden = false;
+  }
+  $("wi-run").addEventListener("click", function () {
+    var mix = selectedMix("wi-mix");
+    if (!mix) return;
+    var pcts = wiCollectPercents();
+    if (pcts.some(function (p) { return !Number.isFinite(p); })) {
+      $("wi-out").hidden = false;
+      $("wi-out").innerHTML = '<div class="errbox" style="margin:0">⚠ Enter a number for every proposed bin %.</div>';
+      return;
+    }
+    var payload = {
+      calc: "bailey",
+      action: "predict",
+      jmf_id: mix.id,
+      proposed_percents: pcts,
+    };
+    var va = parseFloat($("wi-va").value);
+    var dAc = parseFloat($("wi-ac-delta").value);
+    if (Number.isFinite(va)) payload.sample_va = va;
+    if (mix.va != null) payload.design_va = mix.va;
+    if (Number.isFinite(dAc)) payload.proposed_ac_delta = dAc;
+
+    $("wi-run").disabled = true;
+    $("wi-run").textContent = "Predicting…";
+    fetch(ENDPOINT, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) })
+      .then(function (res) { return res.json().then(function (j) { return { ok: res.ok, j: j }; }); })
+      .then(function (x) {
+        wiLast = { result: x.j, mix: mix, percents: pcts, payload: payload };
+        renderPredict(x.j);
+        $("wi-ask").disabled = !(x.j && !x.j.error);
+      })
+      .catch(function (e) {
+        wiLast = null;
+        $("wi-out").hidden = false;
+        $("wi-out").innerHTML = '<div class="errbox" style="margin:0">⚠ ' + esc(String(e.message || e)) + "</div>";
+      })
+      .finally(function () {
+        $("wi-run").disabled = false;
+        $("wi-run").textContent = "Predict";
+      });
+  });
+  $("wi-suggest").addEventListener("click", function () {
+    var mix = selectedMix("wi-mix");
+    if (!mix) return;
+    var va = parseFloat($("wi-va").value);
+    if (!Number.isFinite(va)) {
+      $("wi-moves").hidden = false;
+      $("wi-moves").innerHTML = '<div class="errbox" style="margin:0">⚠ Enter current / sample Va % so suggestions can aim at design.</div>';
+      return;
+    }
+    var cur = [];
+    if (mix.bins) mix.bins.forEach(function (b) { cur.push(b.pct != null ? b.pct : 0); });
+    var payload = {
+      calc: "bailey",
+      action: "suggest_moves",
+      jmf_id: mix.id,
+      sample_va: va,
+      current_percents: cur,
+    };
+    if (mix.va != null) payload.design_va = mix.va;
+    if (mix.ac != null) payload.design_ac = mix.ac;
+    var btn = $("wi-suggest");
+    btn.disabled = true; btn.textContent = "Searching…";
+    fetch(ENDPOINT, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) })
+      .then(function (res) { return res.json(); })
+      .then(function (r) {
+        renderSuggestedMoves("wi-moves", r, {
+          applyId: true,
+          onApply: function (move) {
+            document.querySelectorAll("#wifform .wi-pct").forEach(function (inp, i) {
+              if (move.proposed_percents[i] != null) inp.value = String(move.proposed_percents[i]);
+            });
+            wiUpdateSum();
+            if (move.proposed_ac_delta != null) $("wi-ac-delta").value = String(move.proposed_ac_delta);
+            $("wi-run").click();
+          },
+        });
+      })
+      .catch(function (e) {
+        $("wi-moves").hidden = false;
+        $("wi-moves").innerHTML = '<div class="errbox" style="margin:0">⚠ ' + esc(String(e.message || e)) + "</div>";
+      })
+      .finally(function () { btn.disabled = false; btn.textContent = "Suggest moves"; });
+  });
+  $("wi-ask").addEventListener("click", function () {
+    if (!wiLast || !wiLast.result || wiLast.result.error) return;
+    var r = wiLast.result, mix = wiLast.mix;
+    var lines = ["What-if bin move — interpret this prediction."];
+    lines.push("Mix design: " + mix.name);
+    lines.push("I already ran bailey_calc action=predict. Use these numbers; do not re-derive.");
+    lines.push("Verdict: " + (r.verdict || "") + " — " + (r.verdict_text || ""));
+    if (r.prediction) {
+      var p = r.prediction;
+      lines.push("Predicted Va " + (p.predicted_va != null ? p.predicted_va + "%" : "n/a") +
+        (p.approx_delta_va_total != null ? " (ΔVa ≈ " + p.approx_delta_va_total + "%)" : "") +
+        (p.approx_delta_vma != null ? "; ΔVMA ≈ " + p.approx_delta_vma + "%" : ""));
+    }
+    if (r.plant_rules) lines.push("Plant rules: " + (r.plant_rules.ok ? "OK" : "VIOLATION — " + (r.plant_rules.summary || "")));
+    if (r.bin_table) {
+      var moves = r.bin_table.filter(function (b) { return b.delta_pct; }).map(function (b) {
+        return (b.agg_type || "?") + " " + b.design_pct + "% → " + b.proposed_pct + "%";
+      });
+      if (moves.length) lines.push("Bin moves: " + moves.join("; "));
+    }
+    lines.push("Should I run this change? Any better option within min 10% bins and natural sand ≤15%?");
+    composeToInput(lines.join("\n"));
+  });
+
+  // ---------- Pay factor estimate ----------
+  $("pf-go").addEventListener("click", function () {
+    var v = function(id){ return $(id).value.trim(); };
+    var lines = ["Pay-factor estimate."];
+    var head = [];
+    var mix = pushMixHead(head, lines, "pf-mix", "pf-mix-other");
+    if (v("pf-tons")) head.push("Lot tonnage: " + v("pf-tons"));
+    if (v("pf-class")) head.push("Traffic: " + v("pf-class"));
+    if (head.length) lines.push(head.join(" | "));
+    pushTargets(lines, mix);
+    var res = [];
+    if (v("pf-ac")) res.push("AC content " + v("pf-ac") + " %");
+    if (v("pf-va")) res.push("Air voids by sublot " + v("pf-va") + " %");
+    if (v("pf-vma")) res.push("VMA " + v("pf-vma") + " %");
+    if (v("pf-lanedens")) res.push("Lane/mat density (cores) " + v("pf-lanedens") + " %");
+    if (v("pf-jointdens")) res.push("Joint density (cores) " + v("pf-jointdens") + " %");
+    if (res.length) lines.push("Measured: " + res.join(" | "));
+    lines.push("Estimate the lot pay factor using the KYTC Lot Pay Adjustment Schedule (Compaction Option A) for this mixture " +
+      "type (surface vs base/binder — infer from the mix). You have no contracts tool at this plant, so do NOT claim to have " +
+      "checked a special provision; state plainly that an SP on the job could override the standard schedule. Compute each " +
+      "weighted pay value — AC (deviation from the JMF), Air Voids, VMA (deviation from minimum), Lane Density, and Joint Density " +
+      "(surface only) — using the AADTT traffic class shown, apply the schedule weights, and give the composite pay factor. " +
+      "If lot tonnage is given, also compute the Lot Pay Adjustment in dollars ($50 x quantity x [weighted pay values - 1.00]). " +
+      "Show the table values and the math. Flag any pay value in a penalty band or in a remove-and-replace range. " +
+      "Advisory estimate — verify against the controlling documents.");
+    composeToInput(lines.join("\n"));
+  });
+
+  // ---------- Gradations admin ----------
+  var gradPass = "";
+  function gradBadge(days){
+    if(days == null) return '<span class="gbadge gb-none">none</span>';
+    days = Number(days);
+    if(!isFinite(days)) return '<span class="gbadge gb-none">none</span>';
+    if(days<=8) return '<span class="gbadge gb-fresh">'+days+'d</span>';
+    if(days<=14) return '<span class="gbadge gb-aging">'+days+'d</span>';
+    return '<span class="gbadge gb-stale">'+days+'d · retest</span>';
+  }
+  function gradShow(el){ ["grad-gate","grad-editor"].forEach(function(id){ $(id).hidden = (id!==el); }); }
+  function gradMsg(id, kind, text){ var m=$(id); if(!m) return; m.className="grad-msg "+(kind||""); m.innerHTML=text||""; }
+  function openGrad(){ $("grad-modal").classList.add("open"); gradShow("grad-gate"); gradMsg("grad-gate-msg",""); setTimeout(function(){$("grad-pass").focus();},60); }
+  function closeGrad(){ $("grad-modal").classList.remove("open"); $("grad-pass").value=""; }
+  $("grad-admin-btn").addEventListener("click", openGrad);
+  document.querySelectorAll("[data-grad-close]").forEach(function(b){ b.addEventListener("click", closeGrad); });
+  $("grad-modal").addEventListener("click", function(e){ if(e.target===$("grad-modal")) closeGrad(); });
+
+  function tryUnlock(){
+    var p = $("grad-pass").value.trim();
+    if(!p){ $("grad-pass").focus(); return; }
+    gradMsg("grad-gate-msg","","Checking…");
+    fetch(ENDPOINT, {method:"POST", headers:{"content-type":"application/json"}, body: JSON.stringify({action:"admin_check", admin_key:p})})
+      .then(function(r){ return r.json().then(function(d){ return {ok:r.ok, d:d}; }); })
+      .then(function(res){
+        if(res.ok && res.d.ok){ gradPass=p; gradShow("grad-editor"); loadGradList(); loadGoldCounts(); }
+        else gradMsg("grad-gate-msg","err", res.d.configured===false ? "Admin passcode isn't set up yet." : "Wrong passcode.");
+      })
+      .catch(function(){ gradMsg("grad-gate-msg","err","Network error."); });
+  }
+  $("grad-unlock").addEventListener("click", tryUnlock);
+  $("grad-pass").addEventListener("keydown", function(e){ if(e.key==="Enter") tryUnlock(); });
+
+  function loadGradList(){
+    // Danville's ?gradations=1 returns {agg_type, producer, status, age_days,
+    // tested_on} -- NOT BT3's {tag, tested, source}. Reading the wrong keys here
+    // renders a column of blanks and calls every live stockpile "none".
+    fetch(ENDPOINT + "?gradations=1").then(function(r){return r.json();}).then(function(d){
+      var rows = (d.gradations||[]).map(function(g){
+        var name = g.agg_type || "—";
+        var who  = g.producer ? " · " + g.producer : "";
+        return '<div class="grad-row"><span class="gtag">'+esc(name)+'</span><span class="gdate">'+
+          esc((g.tested_on||"never tested")+who)+'</span>'+gradBadge(g.age_days)+'</div>';
+      }).join("");
+      $("grad-list").innerHTML = rows || '<div class="gsub">No stockpiles offered at this plant.</div>';
+    }).catch(function(){ $("grad-list").innerHTML = '<div class="gsub">Couldn\'t load the list.</div>'; });
+  }
+
+
+  // Counts come from golden_cases.mjs via ?golden=1, never from a literal in this
+  // file -- a stale "(20)" next to a 24-case suite is the kind of wrong that goes
+  // unnoticed for months.
+  function loadGoldCounts(){
+    fetch(ENDPOINT + "?golden=1&suite=all").then(function(r){return r.json();}).then(function(d){
+      var all = d.cases || [];
+      if (!all.length) return;
+      var n = { all: all.length, mix: 0, core: 0 };
+      all.forEach(function(c){ if (n[c.suite] != null) n[c.suite]++; });
+      Array.prototype.forEach.call($("gold-suite").options, function(o){
+        if (n[o.value]) o.textContent = o.textContent.replace(/\s*\(\d+\)$/, "") + " (" + n[o.value] + ")";
+      });
+    }).catch(function(){ /* labels just stay countless; not worth an error box */ });
+  }
+
+  // ---------- in-app golden suite (admin) ----------
+  // Same cases the CLI runner uses (served from ?golden=1), same regex grading —
+  // so this needs no Node install and can be run from a phone.
+  var goldAbort = null;
+  function goldAsk(prompt, signal) {
+    return fetch(ENDPOINT, {
+      method: "POST", headers: { "content-type": "application/json" }, signal: signal,
+      body: JSON.stringify({ provider: $("provider").value || "grok", messages: [{ role: "user", content: prompt }] }),
+    }).then(function (res) {
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      var reader = res.body.getReader(), dec = new TextDecoder(), buf = "", answer = "", errMsg = null;
+      return (function pump() {
+        return reader.read().then(function (r) {
+          if (r.done) { if (errMsg && !answer) throw new Error(errMsg); return answer; }
+          buf += dec.decode(r.value, { stream: true });
+          var nl;
+          while ((nl = buf.indexOf("\n")) >= 0) {
+            var line = buf.slice(0, nl).trim(); buf = buf.slice(nl + 1);
+            if (line.indexOf("data:") !== 0) continue;
+            var data = line.slice(5).trim(); if (!data) continue;
+            var ev; try { ev = JSON.parse(data); } catch (e) { continue; }
+            if (ev.type === "text" && ev.text) answer += ev.text;
+            if (ev.type === "error") errMsg = ev.message || "agent error";
+          }
+          return pump();
+        });
+      })();
+    });
+  }
+  function goldGrade(c, answer) {
+    var fails = [], warns = [];
+    (c.mustMatch || []).forEach(function (p) { if (!new RegExp(p, "i").test(answer)) fails.push("missing /" + p + "/"); });
+    (c.mustNotMatch || []).forEach(function (p) { if (p && new RegExp(p, "i").test(answer)) fails.push("forbidden /" + p + "/"); });
+    (c.softMatch || []).forEach(function (p) { if (!new RegExp(p, "i").test(answer)) warns.push("soft /" + p + "/"); });
+    return { fails: fails, warns: warns };
+  }
+  function goldRow(c, state, detail, answer) {
+    var badge = state === "pass" ? '<span class="gbadge gb-fresh">pass</span>'
+      : state === "warn" ? '<span class="gbadge gb-aging">pass ⚠</span>'
+      : state === "run" ? '<span class="gbadge gb-none">running…</span>'
+      : '<span class="gbadge gb-stale">FAIL</span>';
+    return '<div class="grad-row" id="gold-' + esc(c.id) + '" style="grid-template-columns:1fr auto">' +
+      '<span><span class="gtag">' + esc(c.id) + "</span>" +
+      (detail ? '<br><span class="gdate" style="white-space:normal">' + esc(detail) + "</span>" : "") +
+      // On a failure, show what the agent ACTUALLY said. Without this you can only
+      // see which regex missed, which can't tell wording drift from a real break.
+      (answer ? '<br><span class="gdate" style="white-space:pre-wrap;opacity:.7;display:block;margin-top:4px">'
+        + esc(answer) + "</span>" : "") +
+      "</span>" + badge + "</div>";
+  }
+  $("gold-run").addEventListener("click", function () {
+    var runBtn = $("gold-run"), stopBtn = $("gold-stop");
+    goldAbort = new AbortController();
+    runBtn.disabled = true; runBtn.textContent = "Running…"; stopBtn.hidden = false;
+    gradMsg("gold-msg", "", "Loading cases…");
+    $("gold-out").innerHTML = "";
+    var passed = 0, failed = 0, warned = 0, cases = [];
+    fetch(ENDPOINT + "?golden=1&suite=" + encodeURIComponent($("gold-suite").value || "all")).then(function (r) { return r.json(); }).then(function (d) {
+      cases = d.cases || [];
+      if (!cases.length) throw new Error(d.error || "no cases");
+      $("gold-out").innerHTML = cases.map(function (c) { return goldRow(c, "pending"); }).join("");
+      cases.forEach(function (c) { var el = $("gold-" + c.id); if (el) el.querySelector(".gbadge").outerHTML = '<span class="gbadge gb-none">queued</span>'; });
+      var chain = Promise.resolve();
+      cases.forEach(function (c, i) {
+        chain = chain.then(function () {
+          if (goldAbort.signal.aborted) return;
+          gradMsg("gold-msg", "", "Case " + (i + 1) + " of " + cases.length + ": " + c.id + "…");
+          var row = $("gold-" + c.id);
+          if (row) row.outerHTML = goldRow(c, "run");
+          return goldAsk(c.prompt, goldAbort.signal).then(function (answer) {
+            var g = goldGrade(c, answer);
+            var state = g.fails.length ? "fail" : (g.warns.length ? "warn" : "pass");
+            if (state === "fail") failed++; else { passed++; if (state === "warn") warned++; }
+            var detail = g.fails.length ? g.fails.join(" · ") + " — why: " + c.why
+              : (g.warns.length ? g.warns.join(" · ") : "");
+            var shown = g.fails.length
+              ? "Agent said: " + String(answer || "(empty answer)").slice(0, 600).replace(/\s+/g, " ")
+              : "";
+            var r2 = $("gold-" + c.id);
+            if (r2) r2.outerHTML = goldRow(c, state, detail, shown);
+          }).catch(function (e) {
+            if (goldAbort.signal.aborted) return;
+            failed++;
+            var r3 = $("gold-" + c.id);
+            if (r3) r3.outerHTML = goldRow(c, "fail", "error: " + (e && e.message || e));
+          });
+        });
+      });
+      return chain;
+    }).then(function () {
+      if (goldAbort && goldAbort.signal.aborted) { gradMsg("gold-msg", "err", "Stopped. " + passed + " passed, " + failed + " failed so far."); return; }
+      gradMsg("gold-msg", failed ? "err" : "ok",
+        passed + "/" + (passed + failed) + " passed" + (failed ? " — " + failed + " FAILED (reason + the agent's answer are shown below)" : "") +
+        (warned ? " · " + warned + " with cosmetic wording drift" : ""));
+    }).catch(function (e) {
+      gradMsg("gold-msg", "err", "Couldn't run: " + (e && e.message || e));
+    }).finally(function () {
+      runBtn.disabled = false; runBtn.textContent = "Run tests"; stopBtn.hidden = true; goldAbort = null;
+    });
+  });
+  $("gold-stop").addEventListener("click", function () { if (goldAbort) goldAbort.abort(); });
+
+  // ---------- voice input (hands-free on the plant floor) ----------
+  (function initMic() {
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    var btn = $("mic");
+    if (!SR || !btn) return;                 // unsupported browser → button stays hidden
+    btn.hidden = false;
+    var rec = new SR(), listening = false, base = "";
+    rec.lang = "en-US";
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.onresult = function (e) {
+      var finalTxt = "", interim = "";
+      for (var i = e.resultIndex; i < e.results.length; i++) {
+        var r = e.results[i];
+        if (r.isFinal) finalTxt += r[0].transcript;
+        else interim += r[0].transcript;
+      }
+      if (finalTxt) base = (base ? base + " " : "") + finalTxt.trim();
+      input.value = (base + (interim ? " " + interim : "")).replace(/\s+/g, " ").trim();
+      autoGrow();
+    };
+    rec.onend = function () { if (listening) { try { rec.start(); } catch (e) { stop(); } } };
+    rec.onerror = function () { stop(); };
+    function start() {
+      base = input.value.trim();
+      try { rec.start(); } catch (e) { return; }
+      listening = true;
+      btn.classList.add("rec");
+      btn.title = "Stop dictating";
+    }
+    function stop() {
+      listening = false;
+      try { rec.stop(); } catch (e) {}
+      btn.classList.remove("rec");
+      btn.title = "Dictate (hands-free)";
+      input.focus();
+    }
+    btn.addEventListener("click", function () { listening ? stop() : start(); });
+  })();
+
+  showWelcome();
+  input.focus();
+})();
+</script>
 </body>
 </html>

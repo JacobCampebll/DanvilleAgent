@@ -2122,7 +2122,26 @@ export default async (req) => {
         headers: { "content-type": "application/json", "cache-control": "no-store" },
       });
     }
-    return new Response(JSON.stringify({ error: "POST only (or GET ?mixes=1)" }), { status: 405, headers: { "content-type": "application/json" } });
+    if (url.searchParams.has("samples")) {
+      // Recent volumetric tests with their running bins, for the samples panel.
+      // Read-only and gated like every other data route above.
+      //
+      // This reads test_bin_percentages, which is the ONLY place bin identity is
+      // trustworthy at Danville: 44/44 rows carry material_id, while a design's
+      // components are size designations in a different vocabulary and resolve to
+      // nothing (see CLAUDE.md). So the panel shows what actually ran, not the recipe.
+      const n = Math.max(1, Math.min(50, Number(url.searchParams.get("limit")) || 12));
+      let out;
+      try {
+        out = await getSamples({ limit: n, design: url.searchParams.get("design") || null });
+      } catch (e) { return dbErrorResponse(e); }
+      return new Response(JSON.stringify(out), {
+        // no-store: a tech refreshing this panel is asking "what ran just now",
+        // and a cached answer to that question is a wrong answer.
+        headers: { "content-type": "application/json", "cache-control": "no-store" },
+      });
+    }
+    return new Response(JSON.stringify({ error: "POST only (or GET ?mixes=1, ?samples=1)" }), { status: 405, headers: { "content-type": "application/json" } });
   }
   if (req.method !== "POST")
     return new Response(JSON.stringify({ error: "POST only" }), { status: 405, headers: { "content-type": "application/json" } });
