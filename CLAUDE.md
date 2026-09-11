@@ -404,7 +404,48 @@ the UI calls exists, the removed routes stay removed, the field names match the 
 8 SSE events have renderers, the cache name is not BT3's, and no `$("id")` points at a deleted
 element.
 
-`npm test` runs seven suites — **508 assertions, green.**
+### The agent introduced itself as Boonesborough's — fixed 2026-09-11
+
+Jake, after step 7 shipped: *"it has the boonesboro information, the agent even says its still
+boonesboro agent."* He was right, and the step-4 notes above were wrong where they said "doctrine
+re-pointed". The header name, the site-key and the plant label were re-pointed; **`SYSTEM_PROMPT`
+was not.** It opened:
+
+> You are the Boonesboro Lab Agent — … The Allen Company's Boonesborough Asphalt Plant (plant folder
+> BT3). … You are ONE agent with **eight** tools
+
+Twelve distinct plant-specific errors survived in the one string that tells the model who it is, and
+a further four in **`GROK_SUPPLEMENT`** — which matters more, because `grok` is the default provider,
+so that was the copy most answers actually ran on. Both are fixed:
+
+| Was | Now |
+|---|---|
+| "Boonesboro Lab Agent", "Boonesborough Asphalt Plant (plant folder BT3)" | Danville / DBT |
+| "eight tools" | **seven** — `search_contracts` was dropped at step 4 |
+| `get_aggregates: BT3 stockpile/product catalog` | Danville's catalog, live, with sieve age |
+| `get_design … PLUS linked stockpile_products (material_code match)` | components are spec sizes, `resolved:false`, **not** mapped to yard products |
+| `"using BBQ10W tested 7/20"` | `"using Caldwell Stone #10 tested 2026-09-01"` — BBQ10W is a Boonesborough code |
+| "Then check the contract's SPs if a CID is in play" | removed — it contradicted rule 3 and there is no tool |
+| `CL3 0.38A 64-22 Coarse Haydon`, `CL3 0.38B 64-22 with 11's` | real Danville designs — the model cites examples verbatim |
+| `[CID 252112 line 0320]` citations | removed; samples cite `[Lot 3-2 <design>]` |
+| "never surface the raw **8-digit** JMF number" | "never write a raw database id" — Danville's are 1–2 digits, so the 8-digit rule protected nothing |
+| "several 0.38A's, 0.38D's" | the real shape: **seven** 0.38D variants and four name pairs differing only by plant mix code |
+
+**`tests/system_prompt.test.mjs` — 43 assertions, offline.** It pins identity, makes the prose tool
+count track `TOOLS` (that is what "eight" outlived), and audits **every** model-visible string, not
+just the one someone thought to look at.
+
+Two lessons, both already paid for:
+
+- **The first version of this audit reported `GROK_SUPPLEMENT` clean.** It grepped `Boonesbor|BT3`,
+  and `CL3 0.38A 64-22 Coarse Haydon` contains neither. Check for the *names*, not the brand.
+- **Its first design-name check passed on BT3's own name.** A lazy regex stopped at the `.` in
+  `0.38A`, compared the fragment `"CL3 0"`, and prefix-matched everything. Replaced with an explicit
+  denylist plus a non-vacuity assertion that a real Danville design IS named — the same failure as
+  the backwards slice in `frontend_contract`, which is now three times this class has bitten a port.
+  **Every extraction in a test needs an assertion that it extracted something.**
+
+`npm test` runs eight suites — **551 assertions, green.**
 
 Next: the rule-7 id-scrub gap at `db.mjs`'s serialization boundary, and re-authoring BT3's
 `tests/bailey_calc.test.mjs` against Danville materials.
